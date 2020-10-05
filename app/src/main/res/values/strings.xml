@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">4WBB0App</string>
+
+    <string name="defaultDevice">Default Device</string>
+    <string name="defaultdevice">none</string>
+
+    <string name="device1">idk yet</string>
+    <string name="device2">idk yet</string>
+    <string name="device3">idk yet</string>
+
+    <string-array name="pref_device_entries">
+        <item>device1</item>
+        <item>device2</item>
+        <item>device3</item>
+    </string-array>
+
+    <string-array name="pref_device_values">
+        <item>@string/device1</item>
+        <item>@string/device2</item>
+        <item>@string/device3</item>
+    </string-array>
+
+</resources>

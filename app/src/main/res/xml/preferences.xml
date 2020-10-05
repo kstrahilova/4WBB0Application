@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:holo="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    >
+
+
+
+    <ListPreference
+        holo:key="device"
+        android:defaultValue="@string/defaultdevice"
+        android:entries="@array/pref_device_entries"
+        android:entryValues="@array/pref_device_values"
+        android:title="@string/defaultDevice">
+    </ListPreference>
+
+
+     <!--<Preference-->
+     <!--app:key="color"-->
+     <!--app:title="@string/color" />-->
+
+    <!--
+    <SwitchPreference
+        android:background="@color/colorPrimary"
+        android:enabled="true"
+        android:foreground="@color/colorPrimary"
+        holo:key="light_theme"
+        android:title="@string/light" />
+
+    <Preference
+        holo:key="about"
+        android:title="@string/about" />-->
+
+</PreferenceScreen>
