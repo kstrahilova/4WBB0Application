@@ -57,8 +57,8 @@ public class BluetoothLeService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 intentAction = ACTION_GATT_CONNECTED;
                 connectionState = STATE_CONNECTED;
-                //broadcastUpdate(intentAction);
-                Log.println(Log.INFO, TAG, intentAction);
+                broadcastUpdate(intentAction);
+                //Log.println(Log.INFO, TAG, intentAction);
                 Log.i(TAG, "Connected to GATT server.");
                 Log.i(TAG, "Attempting to start service discovery:" + bluetoothGatt.discoverServices());
 
@@ -66,8 +66,8 @@ public class BluetoothLeService extends Service {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 connectionState = STATE_DISCONNECTED;
                 Log.i(TAG, "Disconnected from GATT server.");
-                //broadcastUpdate(intentAction);
-                Log.println(Log.INFO, TAG, intentAction);
+                broadcastUpdate(intentAction);
+                //Log.println(Log.INFO, TAG, intentAction);
             }
         }
 
@@ -75,8 +75,8 @@ public class BluetoothLeService extends Service {
         // New services discovered
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                //broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
-                Log.println(Log.INFO, TAG, ACTION_GATT_SERVICES_DISCOVERED);
+                broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
+                //Log.println(Log.INFO, TAG, ACTION_GATT_SERVICES_DISCOVERED);
             } else {
                 Log.w(TAG, "onServicesDiscovered received: " + status);
             }
@@ -86,8 +86,8 @@ public class BluetoothLeService extends Service {
         // Result of a characteristic read operation
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                //broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
-                Log.println(Log.INFO, TAG, ACTION_DATA_AVAILABLE + characteristic.toString());
+                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+                //Log.println(Log.INFO, TAG, ACTION_DATA_AVAILABLE + characteristic.toString());
             }
         }
     };
@@ -107,33 +107,18 @@ public class BluetoothLeService extends Service {
         sendBroadcast(intent);
     }
 
-    //TODO: WE ARE NOT IMPLEMEMNTING A BLUETOOTH HEART RATE MEASUREMENT, CHANGE THIS
+    //TODO: CHECK IF THIS WORKS
     private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic) {
         final Intent intent = new Intent(action);
 
-        if (MY_UUID.equals(characteristic.getUuid())) {
-            int flag = characteristic.getProperties();
-            int format = -1;
-            if ((flag & 0x01) != 0) {
-                format = BluetoothGattCharacteristic.FORMAT_UINT16;
-                Log.d(TAG, "Heart rate format UINT16.");
-            } else {
-                format = BluetoothGattCharacteristic.FORMAT_UINT8;
-                Log.d(TAG, "Heart rate format UINT8.");
+        // For all profiles, writes the data formatted in HEX.
+        final byte[] data = characteristic.getValue();
+        if (data != null && data.length > 0) {
+            final StringBuilder stringBuilder = new StringBuilder(data.length);
+            for(byte byteChar : data) {
+                stringBuilder.append(String.format("%02X ", byteChar));
             }
-            final int heartRate = characteristic.getIntValue(format, 1);
-            Log.d(TAG, String.format("Received heart rate: %d", heartRate));
-            intent.putExtra(EXTRA_DATA, String.valueOf(heartRate));
-        } else {
-            // For all other profiles, writes the data formatted in HEX.
-            final byte[] data = characteristic.getValue();
-            if (data != null && data.length > 0) {
-                final StringBuilder stringBuilder = new StringBuilder(data.length);
-                for(byte byteChar : data)
-                    stringBuilder.append(String.format("%02X ", byteChar));
-                intent.putExtra(EXTRA_DATA, new String(data) + "\n" +
-                        stringBuilder.toString());
-            }
+            intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
         }
         sendBroadcast(intent);
     }
