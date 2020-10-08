@@ -7,6 +7,9 @@
     <string name="device1">idk yet</string>
     <string name="device2">idk yet</string>
     <string name="device3">idk yet</string>
+    <string name="title_devices">Devices</string>
+    <string name="ble_not_supported">Bluetooth is not supported on this device</string>
+    <string name="error_bluetooth_not_supported">Bluetooth is not supported on this device</string>
 
     <string-array name="pref_device_entries">
         <item>device1</item>

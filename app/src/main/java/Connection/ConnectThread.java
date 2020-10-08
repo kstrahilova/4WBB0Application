@@ -59,17 +59,17 @@ public class ConnectThread extends Thread {
             // Get a BluetoothSocket to connect with the given BluetoothDevice.
             // MY_UUID is the app's UUID string, also used in the server code.
             //get a BluetoothSocket that allows the client to connect to a Bluetooth device
-            //tmp = device.createRfcommSocketToServiceRecord(MY_UUID);//createInsecureRfcommSocketToServiceRecord(MY_UUID);//createRfcommSocketToServiceRecord(MY_UUID);
-            tmp =(BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(device,1);
+            tmp = device.createRfcommSocketToServiceRecord(MY_UUID);//createInsecureRfcommSocketToServiceRecord(MY_UUID);//createRfcommSocketToServiceRecord(MY_UUID);
+            //tmp =(BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(device,1);
             //tmp =(BluetoothSocket) device.getClass().getMethod("createRfcommSocketToServiceRecord", new Class[] {int.class, UUID.class}).invoke(device,1, MY_UUID);
-//        } catch (IOException e) {
-//            Log.e(TAG, "Socket's create() method failed", e);
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            Log.e(TAG, "Socket's create() method failed", e);
+//        } catch (NoSuchMethodException e) {
+//            e.printStackTrace();
+//        } catch (IllegalAccessException e) {
+//            e.printStackTrace();
+//        } catch (InvocationTargetException e) {
+//            e.printStackTrace();
         }
         mmSocket = tmp;
     }
