@@ -13,6 +13,12 @@
         android:title="@string/defaultDevice">
     </ListPreference>
 
+    <StringPreference
+        holo:key="keyword"
+        android:defaultValue="@string/defaultKeyword"
+        android:title="Default keyword">
+    </StringPreference>
+
 
      <!--<Preference-->
      <!--app:key="color"-->

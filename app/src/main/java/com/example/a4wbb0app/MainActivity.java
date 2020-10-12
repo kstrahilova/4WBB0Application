@@ -1,8 +1,10 @@
 package com.example.a4wbb0app;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.RecyclerView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -18,17 +20,28 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -39,8 +52,6 @@ import Connection.ConnectThread;
 
 import static android.bluetooth.BluetoothProfile.A2DP;
 import static android.bluetooth.BluetoothProfile.GATT;
-import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
-import static android.telecom.Connection.STATE_DISCONNECTED;
 
 public class MainActivity extends AppCompatActivity implements BluetoothBroadcastReceiver.Callback, BluetoothA2DPRequester.Callback {
 
@@ -50,10 +61,25 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     //TODO: change this once you know the actual name of the arduino
     public final String arduinoName = "JBL REFLECT FLOW";
     private static final int REQUEST_GO_TO_BT_SETTINGS = 1;
+    private static final int REQUEST_GO_TO_WF_SETTINGS = 2;
+    private static final int REQUEST_SPEECH_RECOGNITION = 3;
+    private static final int REQUEST_RECORD_AUDIO = 4;
+
+    public static final String PREFERENCES = "preferences";
+    //key for the default device to connect to
+    public static final String keywordPref = "keyword";
+
+    SharedPreferences sharedPreferences;
+    SharedPreferences.Editor editor;
 
     //variables for the views
-    protected static TextView statusText;
-    protected Button settingsBtn;
+    protected static TextView bluetoothStatusText;
+    protected Button bluetoothSettingsBtn;
+    protected TextView networkStatusText;
+    protected Button networkSettingsBtn;
+    //protected TextView currentKeywordText;
+    protected Button recognitionBtn;
+    protected EditText setKeywordEditText;
 
     //variables needed for the connection always
     static BluetoothAdapter bluetoothAdapter;
@@ -61,10 +87,22 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     BluetoothDevice device;
     boolean bracelet;
 
+    //variables needed for network connection
+    ConnectivityManager connectivityManager;
+    NetworkInfo networkInfo;
+
     //needed for the BLE connection
     BluetoothLeService bluetoothLeService;
     BluetoothGatt bluetoothGatt;
     BluetoothGattCallback gattCallback;
+    BluetoothGattCharacteristic triggerVibration;
+
+    //variables needed for the sppech recognition
+    SpeechRecognizer speechRecognizer;
+    boolean isRecognizing;
+    String keyword;
+    Intent recognizerIntent;
+    boolean keywordRegistered;
 
     //variables needed for the BLE scanning, will mostl likey not be used
     BluetoothLeScanner bluetoothLeScanner;
@@ -85,10 +123,18 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         //sets the appropriate layout file to be the layout file for this activity
         setContentView(R.layout.activity_main);
         //finds the views
-        statusText = (TextView)findViewById(R.id.BluetoothStatus);
-        settingsBtn = (Button)findViewById(R.id.BTSettings);
+        bluetoothStatusText = (TextView)findViewById(R.id.BluetoothStatus);
+        bluetoothSettingsBtn = (Button)findViewById(R.id.BTSettings);
+        networkStatusText = (TextView) findViewById(R.id.WiFiStatus);
+        networkSettingsBtn = (Button) findViewById(R.id.WiFiSettings);
+        //currentKeywordText = (TextView) findViewById(R.id.current);
+        recognitionBtn = (Button) findViewById(R.id.BTRecognise);
+        setKeywordEditText = (EditText) findViewById(R.id.wordInput);
 
         discoveredDevices = new HashMap<>();
+
+        connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        networkInfo = connectivityManager.getActiveNetworkInfo();
 
         //gets the bluetooth adapter - The BluetoothAdapter lets you perform fundamental Bluetooth tasks,
         // such as initiate device discovery, query a list of bonded (paired) devices,
@@ -103,6 +149,19 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         bluetoothLeService = new BluetoothLeService();
 
         gattCallback = bluetoothLeService.getGattCallback();
+        triggerVibration = new BluetoothGattCharacteristic(MY_UUID, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT, BluetoothGattCharacteristic.PERMISSION_WRITE);
+        triggerVibration.setValue("0");
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(recognitionListener);
+        isRecognizing = false;
+        keywordRegistered = false;
+
+        sharedPreferences = getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
+        editor = sharedPreferences.edit();
+        keyword = sharedPreferences.getString(keywordPref, "cat");
+        setKeywordEditText.setText(keyword);
+
 
         //needed because otherwise we can't know if the device is connected or not, we need to listen for it getting connected
         bluetoothAdapter.disable();
@@ -111,7 +170,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         //this still needs to be here despite the intent filter
         CheckBlueToothState();
-        buttonListeners();
+        CheckNetworkState();
+        CheckAudioPermission();
+        setListeners();
 
         IntentFilter filterBTchange = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         registerReceiver(receiverBTchange, filterBTchange);
@@ -130,6 +191,16 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         filterGatt.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
         filterGatt.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
         this.registerReceiver(gattUpdateReceiver, filterGatt);
+
+        recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        //recognizerIntent.putExtra(RecognizerIntent.EXTRA_SECURE, true);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH);
+        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+
+        speechRecognizer.startListening(recognizerIntent);
+        //speechRecognizer.startRecognition();
+
     }
 
     @Override
@@ -141,14 +212,74 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      * Method that sets the button listener for the button that opens the bluetooth settings
      * any other button onClickListeners should be created here
      */
-    private void buttonListeners() {
-        settingsBtn.setOnClickListener(new View.OnClickListener() {
+    private void setListeners() {
+        bluetoothSettingsBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent gotToBtSettingsIntent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
                 startActivityForResult(gotToBtSettingsIntent, REQUEST_GO_TO_BT_SETTINGS);
             }
         });
+        networkSettingsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent goToNwSettingsIntent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+                startActivityForResult(goToNwSettingsIntent, REQUEST_GO_TO_WF_SETTINGS);
+            }
+        });
+        recognitionBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
+            }
+        });
+        setKeywordEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            //after the text is changed, set the new keyword
+            @Override
+            public void afterTextChanged(Editable s) {
+                keyword = setKeywordEditText.getText().toString();
+                editor.putString(keywordPref, keyword);
+                editor.commit();
+                showToast("Keyword is updated to " + keyword);
+                //currentKeywordText.setText(keyword);
+                //setKeywordEditText.setText("");
+            }
+        });
+    }
+
+    /**
+     * Method that returns whether or not the android device is connected to the internet
+     * @return
+     */
+    public  boolean isConnected() {
+        if (networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    //TODO: Finish the documentation of this method
+    /**
+     * Method thtat checks the state of the network connectivity
+     * There are ? cases:
+     */
+    private void CheckNetworkState() {
+        if (isConnected()) {
+            networkStatusText.setText("You are connected to the internet.");
+        } else {
+            networkStatusText.setText("Go back to your device's Network Settings and make sure you are connected to the internet.");
+        }
     }
 
     /**
@@ -162,14 +293,14 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     private void CheckBlueToothState(){
         //If bluetooth is not supported
         if (bluetoothAdapter == null){
-            statusText.setText("Bluetooth is not supported on this Android device");
+            bluetoothStatusText.setText("Bluetooth is not supported on this Android device.");
             showToast("Bluetooth is not supported on this device");
         } else {
             //if bluetooth is on ...
             if (bluetoothAdapter.isEnabled()){
                 bluetoothAdapter.getProfileProxy(this, profileListener, A2DP);
                 if (bracelet) {
-                    statusText.setText("Bluetooth is enabled and the bracelet is connected to this device.");
+                    bluetoothStatusText.setText("Bluetooth is enabled and the bracelet is connected to this device.");
                     Log.println(Log.INFO, TAG, "CheckBluetoothState, bluetoothAdapter.isEnabled() && bluetoothAdapter.getBondedDevices() contains bracelet");
                     //not so sure about this - check the profileListener?
                     bluetoothGatt = device.connectGatt(this, true, gattCallback);
@@ -177,17 +308,104 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                     //onA2DPProxyReceived(bluetoothA2dp);
                 //...and the bracelet is not connected
                 } else {
-                    statusText.setText("Go back to your device's Bluetooth settings and make sure you are connected to the bracelet.");
+                    bluetoothStatusText.setText("Go back to your device's Bluetooth settings and make sure you are connected to the bracelet.");
                     Log.println(Log.INFO, TAG, "CheckBluetoothState, bluetoothAdapter.isEnabled() && bluetoothAdapter.getBondedDevices() does NOT contain bracelet");
                 }
             //if bluetooth is off
             } else {
                 bracelet = false;
-                statusText.setText("Go back to your device's Bluetooth settings and make sure you are connected to the bracelet.");
+                bluetoothStatusText.setText("Go back to your device's Bluetooth settings and make sure you are connected to the bracelet.");
                 Log.println(Log.INFO, TAG, "CheckBluetoothState, !bluetoothAdapter.isEnabled()");
             }
         }
     }
+
+    private void CheckAudioPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
+        }
+    }
+
+    private void SpeechRecognition(Intent data) {
+        Log.println(Log.INFO, TAG, "SpeechRecognition method");
+        Log.println(Log.INFO, TAG, data.getAction());
+    }
+
+    /**
+     * Method that if all goes well should send a "1" to the arduino
+     */
+    public void sendToBracelet() {
+        Log.println(Log.INFO, TAG, "sendToBracelet");
+        triggerVibration.setValue("1");
+        if (bluetoothGatt != null) {
+            bluetoothGatt.writeCharacteristic(triggerVibration);
+            showToast("Signal was sent to the bracelet");
+        } else {
+            showToast("Signal cannot be sent, there is no bluetooth connection of the required type");
+        }
+        triggerVibration.setValue("0");
+    }
+
+    private RecognitionListener recognitionListener = new RecognitionListener() {
+        @Override
+        public void onReadyForSpeech(Bundle params) {
+
+        }
+
+        @Override
+        public void onBeginningOfSpeech() {
+            Log.println(Log.INFO, TAG, "onBeginningOfSpeech");
+        }
+
+        @Override
+        public void onRmsChanged(float rmsdB) {
+
+        }
+
+        @Override
+        public void onBufferReceived(byte[] buffer) {
+
+        }
+
+        @Override
+        public void onEndOfSpeech() {
+
+        }
+
+        @Override
+        public void onError(int error) {
+
+        }
+
+        @Override
+        public void onResults(Bundle results) {
+            //This doesn't work
+            Log.println(Log.INFO, TAG, "onResults()");
+            ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            float[] scores = results.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
+            if (matches != null) {
+                for (String word : matches) {
+                    if (word.equals(keyword)) {
+                        //TODO: Do I need keywordRegistered?
+                        keywordRegistered = true;
+                        sendToBracelet();
+                        Log.println(Log.INFO, TAG, "sent to bracelet from listener");
+                        keywordRegistered = false;
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void onPartialResults(Bundle partialResults) {
+
+        }
+
+        @Override
+        public void onEvent(int eventType, Bundle params) {
+
+        }
+    };
 
     /**
      * Method that ensures that user is aware that bluetooth is off, or device is not connected
@@ -199,6 +417,17 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
                 CheckBlueToothState();
             }
+        }
+    };
+
+    /**
+     * Broadcast receiver for network connectivity changes
+     * Since checking for connectivity actions only appears to be a bit more work, it will run CheckNetworkState for any broadcast
+     */
+    private final BroadcastReceiver networkUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            CheckNetworkState();
         }
     };
 
@@ -279,7 +508,30 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         //How do i make it so that the app is open again after settings?
         if (requestCode == REQUEST_GO_TO_BT_SETTINGS) {
             CheckBlueToothState();
+        } else if (requestCode == REQUEST_GO_TO_WF_SETTINGS) {
+            CheckNetworkState();
+        } else if (requestCode == REQUEST_SPEECH_RECOGNITION && resultCode == RESULT_OK) {
+            //This works
+            ArrayList<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (matches != null && matches.size() > 0) {
+                String sentence = matches.get(0);
+                //for (String sentence : matches) {
+                    //divide the string into words
+                    Log.println(Log.INFO, TAG, "sentence #" + matches.size());
+                    String[] split = sentence.split(" ");
+                    for (String  word: split)
+                    if (word.equals(keyword)) {
+                        Log.println(Log.INFO, TAG, "word is " + word);
+                        sendToBracelet();
+                    }
+                //}
+            }
+            startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
         }
+
+//        if (requestCode == REQUEST_SPEECH_RECOGNITION) {
+//            startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
+//        }
     }
 
     /**
@@ -305,8 +557,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      * statusText, but oh well
      * @return
      */
-    public static TextView getStatusText() {
-        return statusText;
+    public static TextView getBluetoothStatusText() {
+        return bluetoothStatusText;
     }
 
     /**
@@ -319,6 +571,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         bluetoothAdapter.closeProfileProxy(GATT, bluetoothGatt);
         unregisterReceiver(receiverBTchange);
         unregisterReceiver(gattUpdateReceiver);
+        speechRecognizer.stopListening();
+        speechRecognizer.destroy();
         connectThread.cancel();
 
         if (bluetoothGatt == null) {

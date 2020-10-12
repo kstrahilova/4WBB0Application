@@ -3,6 +3,7 @@
 
     <string name="defaultDevice">Default Device</string>
     <string name="defaultdevice">none</string>
+    <string name="defaultKeyword">cat</string>
 
     <string name="device1">idk yet</string>
     <string name="device2">idk yet</string>
