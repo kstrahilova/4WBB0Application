@@ -349,7 +349,6 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             showToast("Signal cannot be sent, there is no bluetooth connection of the required type");
         }
         triggerVibration.setValue("0");
-        speechRecognizer.startListening(recognizerIntent);
     }
 
     private RecognitionListener recognitionListener = new RecognitionListener() {
@@ -375,12 +374,12 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         @Override
         public void onEndOfSpeech() {
-
+            speechRecognizer.startListening(recognizerIntent);
         }
 
         @Override
         public void onError(int error) {
-
+            speechRecognizer.startListening(recognizerIntent);
         }
 
         @Override
@@ -401,11 +400,12 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                     }
                 }
             }
+            speechRecognizer.startListening(recognizerIntent);
         }
 
         @Override
         public void onPartialResults(Bundle partialResults) {
-
+            speechRecognizer.startListening(recognizerIntent);
         }
 
         @Override
