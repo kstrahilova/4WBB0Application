@@ -54,6 +54,8 @@ import static android.bluetooth.BluetoothProfile.A2DP;
 import static android.bluetooth.BluetoothProfile.GATT;
 import static android.speech.RecognizerIntent.RESULT_AUDIO_ERROR;
 import static android.speech.RecognizerIntent.RESULT_NO_MATCH;
+import static android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY;
+import static android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT;
 
 public class MainActivity extends AppCompatActivity implements BluetoothBroadcastReceiver.Callback, BluetoothA2DPRequester.Callback {
 
@@ -374,12 +376,14 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         @Override
         public void onEndOfSpeech() {
-            speechRecognizer.startListening(recognizerIntent);
+
         }
 
         @Override
         public void onError(int error) {
-            speechRecognizer.startListening(recognizerIntent);
+            if (error != ERROR_RECOGNIZER_BUSY) {
+                speechRecognizer.startListening(recognizerIntent);
+            }
         }
 
         @Override
@@ -405,7 +409,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         @Override
         public void onPartialResults(Bundle partialResults) {
-            speechRecognizer.startListening(recognizerIntent);
+
         }
 
         @Override
