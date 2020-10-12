@@ -79,19 +79,19 @@
 
     <EditText
         android:id="@+id/wordInput"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:textAlignment="center"
-        android:textColor="#808080"
+        android:textColor="#000"
         android:inputType="text"
-        app:backgroundTint="#808080"
-        android:cursorVisible="false"
-        android:textSize="20sp"
+        app:backgroundTint="#FFF"
+        android:textCursorDrawable="@null"
+        android:textSize="25sp"
         app:layout_constraintBottom_toTopOf="@id/BTRecognise"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/setWord" />
+        app:layout_constraintTop_toTopOf="@id/setWord" />
 
     <Button
         android:id="@+id/BTRecognise"

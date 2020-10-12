@@ -52,6 +52,8 @@ import Connection.ConnectThread;
 
 import static android.bluetooth.BluetoothProfile.A2DP;
 import static android.bluetooth.BluetoothProfile.GATT;
+import static android.speech.RecognizerIntent.RESULT_AUDIO_ERROR;
+import static android.speech.RecognizerIntent.RESULT_NO_MATCH;
 
 public class MainActivity extends AppCompatActivity implements BluetoothBroadcastReceiver.Callback, BluetoothA2DPRequester.Callback {
 
@@ -130,6 +132,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         //currentKeywordText = (TextView) findViewById(R.id.current);
         recognitionBtn = (Button) findViewById(R.id.BTRecognise);
         setKeywordEditText = (EditText) findViewById(R.id.wordInput);
+
+        recognitionBtn.setVisibility(View.INVISIBLE);
 
         discoveredDevices = new HashMap<>();
 
@@ -230,7 +234,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         recognitionBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
+                speechRecognizer.startListening(recognizerIntent);
+                //startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
             }
         });
         setKeywordEditText.addTextChangedListener(new TextWatcher() {
@@ -344,6 +349,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             showToast("Signal cannot be sent, there is no bluetooth connection of the required type");
         }
         triggerVibration.setValue("0");
+        speechRecognizer.startListening(recognizerIntent);
     }
 
     private RecognitionListener recognitionListener = new RecognitionListener() {
@@ -383,14 +389,15 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             Log.println(Log.INFO, TAG, "onResults()");
             ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             float[] scores = results.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
-            if (matches != null) {
-                for (String word : matches) {
+            if (matches != null && matches.size() > 0) {
+                String sentence = matches.get(0);
+                Log.println(Log.INFO, TAG, "sentence #" + matches.size());
+                String[] split = sentence.split(" ");
+                for (String word : split) {
                     if (word.equals(keyword)) {
-                        //TODO: Do I need keywordRegistered?
-                        keywordRegistered = true;
-                        sendToBracelet();
+                        Log.println(Log.INFO, TAG, "word is " + word);
                         Log.println(Log.INFO, TAG, "sent to bracelet from listener");
-                        keywordRegistered = false;
+                        sendToBracelet();
                     }
                 }
             }
@@ -516,10 +523,10 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             if (matches != null && matches.size() > 0) {
                 String sentence = matches.get(0);
                 //for (String sentence : matches) {
-                    //divide the string into words
-                    Log.println(Log.INFO, TAG, "sentence #" + matches.size());
-                    String[] split = sentence.split(" ");
-                    for (String  word: split)
+                //divide the string into words
+                Log.println(Log.INFO, TAG, "sentence #" + matches.size());
+                String[] split = sentence.split(" ");
+                for (String word : split)
                     if (word.equals(keyword)) {
                         Log.println(Log.INFO, TAG, "word is " + word);
                         sendToBracelet();
@@ -527,6 +534,11 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                 //}
             }
             startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
+        } /*else if (requestCode == REQUEST_SPEECH_RECOGNITION && resultCode == RESULT_AUDIO_ERROR) {
+            startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
+        }*/
+         else if (requestCode == REQUEST_SPEECH_RECOGNITION) {
+             Log.println(Log.INFO, TAG, "resultCode is " + String.valueOf(resultCode));
         }
 
 //        if (requestCode == REQUEST_SPEECH_RECOGNITION) {
