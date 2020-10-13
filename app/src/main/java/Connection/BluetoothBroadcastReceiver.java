@@ -51,7 +51,7 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
     @Override
     public void onReceive (Context context, Intent intent) {
         if (!BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction())) {
-            Log.v(TAG, "Received irrelevant broadcast. Disregarding.");
+            //Log.v(TAG, "Received irrelevant broadcast. Disregarding.");
             return;
         }
 
@@ -82,7 +82,7 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
         try {
             c.unregisterReceiver(receiver);
         } catch (IllegalArgumentException ex) {
-            Log.w(TAG, "Tried to unregister BluetoothBroadcastReceiver that was not registered.");
+            //Log.w(TAG, "Tried to unregister BluetoothBroadcastReceiver that was not registered.");
         }
     }
 

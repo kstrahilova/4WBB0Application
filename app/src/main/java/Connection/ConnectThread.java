@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
 
-import potentiallyUseless.AndroidBluetooth;
 
 import static android.content.ContentValues.TAG;
 
@@ -47,13 +46,13 @@ public class ConnectThread extends Thread {
         mmDevice = device;
         bluetoothAdapter = MainActivity.getBluetoothAdapter();
 
-        Log.println(Log.INFO, "ConnectThread", "we are in the constructor");
+        //Log.println(Log.INFO, "ConnectThread", "we are in the constructor");
 
 
         //bluetoothAdapter.getProfileProxy(MainActivity.getContext(), listener, BluetoothProfile.A2DP);
 
         if (device == null) {
-            Log.println(Log.INFO, TAG, "device is null in constructor");
+            //Log.println(Log.INFO, TAG, "device is null in constructor");
         }
         try {
             // Get a BluetoothSocket to connect with the given BluetoothDevice.
@@ -63,7 +62,7 @@ public class ConnectThread extends Thread {
             //tmp =(BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(device,1);
             //tmp =(BluetoothSocket) device.getClass().getMethod("createRfcommSocketToServiceRecord", new Class[] {int.class, UUID.class}).invoke(device,1, MY_UUID);
         } catch (IOException e) {
-            Log.e(TAG, "Socket's create() method failed", e);
+            //Log.e(TAG, "Socket's create() method failed", e);
 //        } catch (NoSuchMethodException e) {
 //            e.printStackTrace();
 //        } catch (IllegalAccessException e) {
@@ -76,7 +75,7 @@ public class ConnectThread extends Thread {
 
 
     public void run() {
-        Log.println(Log.INFO, "ConnectThread", "beginning of run()");
+        //Log.println(Log.INFO, "ConnectThread", "beginning of run()");
         // Cancel discovery because it otherwise slows down the connection.
         bluetoothAdapter.cancelDiscovery();
 
@@ -84,7 +83,7 @@ public class ConnectThread extends Thread {
             // Connect to the remote device through the socket. This call blocks
             // until it succeeds or throws an exception.
             mmSocket.connect();
-            Log.println(Log.INFO, "ConnectThread", "after mmSocket.connect()");
+            //Log.println(Log.INFO, "ConnectThread", "after mmSocket.connect()");
         } catch (IOException connectException) {
             // Unable to connect; close the socket and return.
 //            try {
@@ -92,7 +91,7 @@ public class ConnectThread extends Thread {
 //            } catch (IOException closeException) {
 //                Log.e(TAG, "Could not close the client socket", closeException);
 //            }
-            Log.e(TAG, "Connect didn't work", connectException);
+            //Log.e(TAG, "Connect didn't work", connectException);
             return;
         }
 
@@ -113,10 +112,10 @@ public class ConnectThread extends Thread {
     // Closes the client socket and causes the thread to finish.
     public void cancel() {
         try {
-            Log.println(Log.INFO, "ConnectThread", "we are closing the socket.");
+            //Log.println(Log.INFO, "ConnectThread", "we are closing the socket.");
             mmSocket.close();
         } catch (IOException e) {
-            Log.e(TAG, "Could not close the client socket", e);
+            //Log.e(TAG, "Could not close the client socket", e);
         }
     }
 }

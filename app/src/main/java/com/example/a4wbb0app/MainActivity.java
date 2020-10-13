@@ -156,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         gattCallback = bluetoothLeService.getGattCallback();
         triggerVibration = new BluetoothGattCharacteristic(MY_UUID, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT, BluetoothGattCharacteristic.PERMISSION_WRITE);
-        triggerVibration.setValue("0");
+        triggerVibration.setValue(new byte[] {(byte) 0});
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechRecognizer.setRecognitionListener(recognitionListener);
@@ -308,7 +308,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                 bluetoothAdapter.getProfileProxy(this, profileListener, A2DP);
                 if (bracelet) {
                     bluetoothStatusText.setText("Bluetooth is enabled and the bracelet is connected to this device.");
-                    Log.println(Log.INFO, TAG, "CheckBluetoothState, bluetoothAdapter.isEnabled() && bluetoothAdapter.getBondedDevices() contains bracelet");
+                    //Log.println(Log.INFO, TAG, "CheckBluetoothState, bluetoothAdapter.isEnabled() && bluetoothAdapter.getBondedDevices() contains bracelet");
                     //not so sure about this - check the profileListener?
                     bluetoothGatt = device.connectGatt(this, true, gattCallback);
                     //connectThread(device);
@@ -316,13 +316,13 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                 //...and the bracelet is not connected
                 } else {
                     bluetoothStatusText.setText("Go back to your device's Bluetooth settings and make sure you are connected to the bracelet.");
-                    Log.println(Log.INFO, TAG, "CheckBluetoothState, bluetoothAdapter.isEnabled() && bluetoothAdapter.getBondedDevices() does NOT contain bracelet");
+                    //Log.println(Log.INFO, TAG, "CheckBluetoothState, bluetoothAdapter.isEnabled() && bluetoothAdapter.getBondedDevices() does NOT contain bracelet");
                 }
             //if bluetooth is off
             } else {
                 bracelet = false;
                 bluetoothStatusText.setText("Go back to your device's Bluetooth settings and make sure you are connected to the bracelet.");
-                Log.println(Log.INFO, TAG, "CheckBluetoothState, !bluetoothAdapter.isEnabled()");
+                //Log.println(Log.INFO, TAG, "CheckBluetoothState, !bluetoothAdapter.isEnabled()");
             }
         }
     }
@@ -334,23 +334,23 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     private void SpeechRecognition(Intent data) {
-        Log.println(Log.INFO, TAG, "SpeechRecognition method");
-        Log.println(Log.INFO, TAG, data.getAction());
+        //Log.println(Log.INFO, TAG, "SpeechRecognition method");
+        //Log.println(Log.INFO, TAG, data.getAction());
     }
 
     /**
      * Method that if all goes well should send a "1" to the arduino
      */
     public void sendToBracelet() {
-        Log.println(Log.INFO, TAG, "sendToBracelet");
-        triggerVibration.setValue("1");
+        //Log.println(Log.INFO, TAG, "sendToBracelet");
+        triggerVibration.setValue(new byte[] {(byte) 1});
         if (bluetoothGatt != null) {
             bluetoothGatt.writeCharacteristic(triggerVibration);
             showToast("Signal was sent to the bracelet");
         } else {
             showToast("Signal cannot be sent, there is no bluetooth connection of the required type");
         }
-        triggerVibration.setValue("0");
+        triggerVibration.setValue(new byte[] {(byte) 0});
     }
 
     private RecognitionListener recognitionListener = new RecognitionListener() {
@@ -361,7 +361,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         @Override
         public void onBeginningOfSpeech() {
-            Log.println(Log.INFO, TAG, "onBeginningOfSpeech");
+            //Log.println(Log.INFO, TAG, "onBeginningOfSpeech");
         }
 
         @Override
@@ -389,7 +389,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         @Override
         public void onResults(Bundle results) {
             //This doesn't work
-            Log.println(Log.INFO, TAG, "onResults()");
+            //Log.println(Log.INFO, TAG, "onResults()");
             ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             float[] scores = results.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
             if (matches != null && matches.size() > 0) {
@@ -398,8 +398,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                 String[] split = sentence.split(" ");
                 for (String word : split) {
                     if (word.equals(keyword)) {
-                        Log.println(Log.INFO, TAG, "word is " + word);
-                        Log.println(Log.INFO, TAG, "sent to bracelet from listener");
+                        //Log.println(Log.INFO, TAG, "word is " + word);
+                        //Log.println(Log.INFO, TAG, "sent to bracelet from listener");
                         sendToBracelet();
                     }
                 }
@@ -528,11 +528,11 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                 String sentence = matches.get(0);
                 //for (String sentence : matches) {
                 //divide the string into words
-                Log.println(Log.INFO, TAG, "sentence #" + matches.size());
+                //Log.println(Log.INFO, TAG, "sentence #" + matches.size());
                 String[] split = sentence.split(" ");
                 for (String word : split)
                     if (word.equals(keyword)) {
-                        Log.println(Log.INFO, TAG, "word is " + word);
+                        //Log.println(Log.INFO, TAG, "word is " + word);
                         sendToBracelet();
                     }
                 //}
@@ -542,8 +542,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
         }*/
          else if (requestCode == REQUEST_SPEECH_RECOGNITION) {
-             Log.println(Log.INFO, TAG, "resultCode is " + String.valueOf(resultCode));
-        }
+             //Log.println(Log.INFO, TAG, "resultCode is " + String.valueOf(resultCode));
+         }
 
 //        if (requestCode == REQUEST_SPEECH_RECOGNITION) {
 //            startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
