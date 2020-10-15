@@ -52,10 +52,7 @@ import Connection.ConnectThread;
 
 import static android.bluetooth.BluetoothProfile.A2DP;
 import static android.bluetooth.BluetoothProfile.GATT;
-import static android.speech.RecognizerIntent.RESULT_AUDIO_ERROR;
-import static android.speech.RecognizerIntent.RESULT_NO_MATCH;
 import static android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY;
-import static android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT;
 
 public class MainActivity extends AppCompatActivity implements BluetoothBroadcastReceiver.Callback, BluetoothA2DPRequester.Callback {
 
@@ -204,6 +201,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH);
         recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
 
+        registerReceiver(networkUpdateReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+
+
         speechRecognizer.startListening(recognizerIntent);
         //speechRecognizer.startRecognition();
 
@@ -269,6 +269,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      * @return
      */
     public  boolean isConnected() {
+        networkInfo = connectivityManager.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()) {
             return true;
         } else {
@@ -281,7 +282,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      * Method thtat checks the state of the network connectivity
      * There are ? cases:
      */
-    private void CheckNetworkState() {
+    public void CheckNetworkState() {
         if (isConnected()) {
             networkStatusText.setText("You are connected to the internet.");
         } else {
@@ -438,6 +439,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     private final BroadcastReceiver networkUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            Log.println(Log.INFO, TAG, "onReceive");
             CheckNetworkState();
         }
     };
