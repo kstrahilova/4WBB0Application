@@ -28,7 +28,7 @@
         android:minWidth="200dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Go to device's Bluetooth Settings"
+        android:text="Scan again"
         android:visibility="visible"
         style="@style/Base.Widget.AppCompat.Button"
         app:layout_constraintBottom_toTopOf="@id/WiFiStatus"
