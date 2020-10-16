@@ -300,9 +300,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      */
     private void CheckBlueToothState(){
         //If bluetooth is not supported
-        if (bluetoothAdapter == null){
-            bluetoothStatusText.setText("Bluetooth is not supported on this Android device.");
-            showToast("Bluetooth is not supported on this device");
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {//bluetoothAdapter == null){
+            bluetoothStatusText.setText("Bluetooth Low Energy is not supported on this Android device.");
+            showToast("BLE is not supported on this device");
         } else {
             //if bluetooth is on ...
             if (bluetoothAdapter.isEnabled()){
@@ -395,7 +395,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             float[] scores = results.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
             if (matches != null && matches.size() > 0) {
                 String sentence = matches.get(0);
-                Log.println(Log.INFO, TAG, "sentence #" + matches.size());
+                //Log.println(Log.INFO, TAG, "sentence #" + matches.size());
                 String[] split = sentence.split(" ");
                 for (String word : split) {
                     if (word.equals(keyword)) {
@@ -439,7 +439,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     private final BroadcastReceiver networkUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.println(Log.INFO, TAG, "onReceive");
+            //Log.println(Log.INFO, TAG, "onReceive");
             CheckNetworkState();
         }
     };
@@ -700,9 +700,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             connect.setAccessible(true);
             connect.invoke(proxy, device);
         } catch (InvocationTargetException ex) {
-            Log.e(TAG, "Unable to invoke connect(BluetoothDevice) method on proxy. " + ex.toString());
+            //Log.e(TAG, "Unable to invoke connect(BluetoothDevice) method on proxy. " + ex.toString());
         } catch (IllegalAccessException ex) {
-            Log.e(TAG, "Illegal Access! " + ex.toString());
+            //Log.e(TAG, "Illegal Access! " + ex.toString());
         }
     }
 
@@ -715,7 +715,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         try {
             return BluetoothA2dp.class.getDeclaredMethod("connect", BluetoothDevice.class);
         } catch (NoSuchMethodException ex) {
-            Log.e(TAG, "Unable to find connect(BluetoothDevice) method in BluetoothA2dp proxy.");
+            //Log.e(TAG, "Unable to find connect(BluetoothDevice) method in BluetoothA2dp proxy.");
             return null;
         }
     }

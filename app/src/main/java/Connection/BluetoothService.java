@@ -40,12 +40,12 @@ public class BluetoothService {
             try {
                 tmpIn = socket.getInputStream();
             } catch (IOException e) {
-                Log.e(TAG, "Error occurred when creating input stream", e);
+                //Log.e(TAG, "Error occurred when creating input stream", e);
             }
             try {
                 tmpOut = socket.getOutputStream();
             } catch (IOException e) {
-                Log.e(TAG, "Error occurred when creating output stream", e);
+                //Log.e(TAG, "Error occurred when creating output stream", e);
             }
 
             mmInStream = tmpIn;
@@ -67,7 +67,7 @@ public class BluetoothService {
                             mmBuffer);
                     readMsg.sendToTarget();
                 } catch (IOException e) {
-                    Log.d(TAG, "Input stream was disconnected", e);
+                    //Log.d(TAG, "Input stream was disconnected", e);
                     break;
                 } catch (NullPointerException e) {
                     continue;
@@ -85,7 +85,7 @@ public class BluetoothService {
                         MessageConstants.MESSAGE_WRITE, -1, -1, mmBuffer);
                 writtenMsg.sendToTarget();
             } catch (IOException e) {
-                Log.e(TAG, "Error occurred when sending data", e);
+                //Log.e(TAG, "Error occurred when sending data", e);
 
                 // Send a failure message back to the activity.
                 Message writeErrorMsg =
@@ -103,7 +103,7 @@ public class BluetoothService {
             try {
                 mmSocket.close();
             } catch (IOException e) {
-                Log.e(TAG, "Could not close the connect socket", e);
+                //Log.e(TAG, "Could not close the connect socket", e);
             }
         }
     }
