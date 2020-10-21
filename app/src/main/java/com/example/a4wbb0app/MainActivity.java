@@ -689,7 +689,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             super.onScanResult(callbackType, result);
             leDeviceListAdapter.addDevice(result.getDevice().getName(), result.getDevice());
             leDeviceListAdapter.notifyDataSetChanged();
-            bluetoothStatusText.append(System.lineSeparator() + result.getDevice().getName() + " " + result.getDevice().getAddress());
+            //bluetoothStatusText.append(System.lineSeparator() + result.getDevice().getName() + " " + result.getDevice().getAddress());
             //discoveredDevices.put(result.getDevice().getName(), result.getDevice());
             bracelet = connectToBracelet();
         }
@@ -714,7 +714,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                     scanning = false;
                     if (bluetoothAdapter.getState() == BluetoothAdapter.STATE_ON) {
                         bluetoothLeScanner.stopScan(leScanCallback);
-                        scanAgainBT.setEnabled(true);
+                        if (!bracelet) {
+                            scanAgainBT.setEnabled(true);
+                        }
                     }
                 }
             }, SCAN_PERIOD);
