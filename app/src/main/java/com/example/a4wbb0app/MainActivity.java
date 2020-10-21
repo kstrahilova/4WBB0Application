@@ -22,6 +22,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
@@ -61,7 +62,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     private static final String TAG = "MainActivity";
     public static final UUID MY_UUID = UUID.fromString("2c38fe90-116c-4645-921e-b4d8ca85449f");
     //TODO: change this once you know the actual name of the arduino
-    public final String arduinoName = "JBL REFLECT FLOW";
+    public final String arduinoName = "FP-30";
     private static final int REQUEST_GO_TO_BT_SETTINGS = 1;
     private static final int REQUEST_GO_TO_WF_SETTINGS = 2;
     private static final int REQUEST_SPEECH_RECOGNITION = 3;
@@ -116,6 +117,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     HashMap<String, BluetoothDevice> discoveredDevices;
     LeDeviceListAdapter leDeviceListAdapter;
 
+    AudioManager audioManager;
+    int initialVolume;
+
     //needed for the Bluetooth classic, will most likely not be used
     ConnectThread connectThread;
 
@@ -153,6 +157,11 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         bluetoothAdapter = bluetoothManager.getAdapter();
 
+        //gets rid of the SpeechRecognizer beeping
+        audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        audioManager.setMicrophoneMute(false);
+        initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING);
+        audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
 
         bluetoothLeService = new BluetoothLeService();
         handler = new Handler();
@@ -160,7 +169,10 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
 
         gattCallback = bluetoothLeService.getGattCallback();
-        triggerVibration = new BluetoothGattCharacteristic(MY_UUID, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT, BluetoothGattCharacteristic.PERMISSION_WRITE);
+        //triggerVibration = new BluetoothGattCharacteristic(MY_UUID, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT, BluetoothGattCharacteristic.PERMISSION_WRITE);
+        triggerVibration = new BluetoothGattCharacteristic(MY_UUID, BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_WRITE);
+        //TODO: 163 and 166 or 164? or neither?
+        //triggerVibration.setWriteType(BluetoothGattCharacteristic.FORMAT_UINT8);
         triggerVibration.setValue(new byte[] {(byte) 0});
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
@@ -180,7 +192,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         bracelet = false;
 
         //this still needs to be here despite the intent filter
-        CheckBlueToothState();
+        CheckBluetoothState();
         CheckNetworkState();
         CheckAudioPermission();
         CheckLocationPermission();
@@ -234,7 +246,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                 //Intent gotToBtSettingsIntent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
                 //startActivityForResult(gotToBtSettingsIntent, REQUEST_GO_TO_BT_SETTINGS);
                 //scanAgainBT.setEnabled(false);
-                CheckBlueToothState();
+                CheckBluetoothState();
             }
         });
         networkSettingsBtn.setOnClickListener(new View.OnClickListener() {
@@ -296,6 +308,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     public void CheckNetworkState() {
         if (isConnected()) {
             networkStatusText.setText("You are connected to the internet.");
+            if (speechRecognizer != null && recognizerIntent != null) {
+                speechRecognizer.startListening(recognizerIntent);
+            }
         } else {
             networkStatusText.setText("Go back to your device's Network Settings and make sure you are connected to the internet.");
         }
@@ -309,7 +324,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      * It ensures that the user is notified in which state they are so that they can ensure they are
      * in the target state, namely bluetooth is enabled and the bracelet is connected
      */
-    private void CheckBlueToothState(){
+    private void CheckBluetoothState(){
         //If bluetooth is not supported
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {//bluetoothAdapter == null){
             bluetoothStatusText.setText("Bluetooth Low Energy is not supported on this Android device.");
@@ -360,6 +375,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     public boolean connectToBracelet() {
+        Log.println(Log.INFO, TAG, "connectToBracelet()");
         if (leDeviceListAdapter.containsKey(arduinoName)) {
             bluetoothGatt = leDeviceListAdapter.getDevice(arduinoName).connectGatt(this, true, gattCallback);
             return true;
@@ -456,7 +472,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
-                CheckBlueToothState();
+                CheckBluetoothState();
             }
         }
     };
@@ -557,7 +573,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         //How do i make it so that the app is open again after settings?
         if (requestCode == REQUEST_GO_TO_BT_SETTINGS || requestCode == REQUEST_ENABLE_BT) {
-            CheckBlueToothState();
+            CheckBluetoothState();
         } else if (requestCode == REQUEST_GO_TO_WF_SETTINGS) {
             CheckNetworkState();
         } else if (requestCode == REQUEST_SPEECH_RECOGNITION && resultCode == RESULT_OK) {
@@ -612,6 +628,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     protected void onDestroy() {
         super.onDestroy();
         //bluetoothAdapter.closeProfileProxy(A2DP, bluetoothA2dp);
+        audioManager.setStreamVolume(AudioManager.STREAM_RING, initialVolume, AudioManager.FLAG_VIBRATE);
+
         bluetoothAdapter.closeProfileProxy(GATT, bluetoothGatt);
         unregisterReceiver(receiverBTchange);
         unregisterReceiver(gattUpdateReceiver);
@@ -637,6 +655,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             super.onScanResult(callbackType, result);
             leDeviceListAdapter.addDevice(result.getDevice().getName(), result.getDevice());
             leDeviceListAdapter.notifyDataSetChanged();
+            //bluetoothStatusText.append(System.lineSeparator() + result.getDevice().getName());
             //discoveredDevices.put(result.getDevice().getName(), result.getDevice());
         }
     };
@@ -666,6 +685,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             }, SCAN_PERIOD);
             scanAgainBT.setEnabled(false);
             scanning = true;
+            bluetoothAdapter.startDiscovery();
             bluetoothLeScanner.startScan(leScanCallback);
         } else {
             scanning = false;
@@ -703,7 +723,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
                 bracelet = false;
             }
-            CheckBlueToothState();
+            CheckBluetoothState();
         }
     };
 

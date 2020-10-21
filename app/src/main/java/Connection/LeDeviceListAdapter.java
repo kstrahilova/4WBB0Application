@@ -1,16 +1,10 @@
 package Connection;
 
 import android.bluetooth.BluetoothDevice;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.example.a4wbb0app.R;
-
-import java.util.ArrayList;
 import java.util.HashMap;
 
 // Adapter for holding devices found through scanning.
