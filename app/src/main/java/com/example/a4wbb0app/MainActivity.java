@@ -344,7 +344,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                         scanLeDevice();
                     }
                     //try to connect to the bracelet
-                    bracelet = connectToBracelet();
+                    //bracelet = connectToBracelet();
                     if (bracelet) {
                         scanAgainBT.setEnabled(false);
                         bluetoothStatusText.setText("Bluetooth is enabled and the bracelet is connected to this device.");
@@ -691,6 +691,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             leDeviceListAdapter.notifyDataSetChanged();
             bluetoothStatusText.append(System.lineSeparator() + result.getDevice().getName() + " " + result.getDevice().getAddress());
             //discoveredDevices.put(result.getDevice().getName(), result.getDevice());
+            bracelet = connectToBracelet();
         }
     };
 
