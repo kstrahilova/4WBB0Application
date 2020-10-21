@@ -1,24 +1,15 @@
 package Connection;
 
 import android.annotation.SuppressLint;
-import android.app.Application;
-import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
-import android.util.Log;
-import android.widget.Toast;
 
 import com.example.a4wbb0app.MainActivity;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
-
-
-import static android.content.ContentValues.TAG;
 
 /**
  * I THINK WE WILL ONLY NEED THIS ONE AND NOT ACCEPTTHREAD
@@ -39,7 +30,7 @@ public class ConnectThread extends Thread {
     //We need a device that we have found
     @SuppressLint("LongLogTag")
     public ConnectThread(BluetoothDevice device) {
-        MY_UUID = MainActivity.MY_UUID;
+        MY_UUID = MainActivity.SERVICE_UUID;
         // Use a temporary object that is later assigned to mmSocket
         // because mmSocket is final.
         BluetoothSocket tmp = null;

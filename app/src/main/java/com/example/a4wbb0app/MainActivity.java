@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
@@ -44,6 +45,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 import Connection.BluetoothA2DPRequester;
@@ -60,9 +62,11 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
     //final variables
     private static final String TAG = "MainActivity";
-    public static final UUID MY_UUID = UUID.fromString("2c38fe90-116c-4645-921e-b4d8ca85449f");
+    //public static final UUID DEVICE_UUID = UUID.fromString("0x1800");
+    //public static final UUID DEVICE_UUID = UUID.fromString("9ce6f281-2db9-4e55-be33-ebcf79334a1c");
+    public static final UUID SERVICE_UUID = UUID.fromString("2c38fe90-116c-4645-921e-b4d8ca85449f");
     //TODO: change this once you know the actual name of the arduino
-    public final String arduinoName = "FP-30";
+    public final String arduinoName = "VibrationMotor";//"FP-30";
     private static final int REQUEST_GO_TO_BT_SETTINGS = 1;
     private static final int REQUEST_GO_TO_WF_SETTINGS = 2;
     private static final int REQUEST_SPEECH_RECOGNITION = 3;
@@ -100,6 +104,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     BluetoothLeService bluetoothLeService;
     BluetoothGatt bluetoothGatt;
     BluetoothGattCallback gattCallback;
+    BluetoothGattService bluetoothGattService;
     BluetoothGattCharacteristic triggerVibration;
 
     //variables needed for the sppech recognition
@@ -170,10 +175,10 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         gattCallback = bluetoothLeService.getGattCallback();
         //triggerVibration = new BluetoothGattCharacteristic(MY_UUID, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT, BluetoothGattCharacteristic.PERMISSION_WRITE);
-        triggerVibration = new BluetoothGattCharacteristic(MY_UUID, BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_WRITE);
+        //triggerVibration = new BluetoothGattCharacteristic(DEVICE_UUID, BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_WRITE);
         //TODO: 163 and 166 or 164? or neither?
         //triggerVibration.setWriteType(BluetoothGattCharacteristic.FORMAT_UINT8);
-        triggerVibration.setValue(new byte[] {(byte) 0});
+        //triggerVibration.setValue(new byte[] {(byte) 0});
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechRecognizer.setRecognitionListener(recognitionListener);
@@ -224,6 +229,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         registerReceiver(networkUpdateReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
 
+        CheckBluetoothState();
+        CheckNetworkState();
 
         speechRecognizer.startListening(recognizerIntent);
         //speechRecognizer.startRecognition();
@@ -332,7 +339,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         } else {
             //if bluetooth is on ...
             if (bluetoothAdapter.getState() == BluetoothAdapter.STATE_ON) {//.isEnabled()){
-                Log.println(Log.INFO, TAG, "adapter is On");
+                //Log.println(Log.INFO, TAG, "adapter is On");
                 if (bracelet) {
                     scanAgainBT.setEnabled(false);
                     bluetoothStatusText.setText("Bluetooth is enabled and the bracelet is connected to this device.");
@@ -344,6 +351,9 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                     }
                     //try to connect to the bracelet
                     bracelet = connectToBracelet();
+//                    if (bracelet) {
+//                        CheckBluetoothState();
+//                    }
                     /*if (!scanning && !bracelet) {
                         scanAgainBT.setEnabled(true);
                     }*/
@@ -377,7 +387,10 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     public boolean connectToBracelet() {
         Log.println(Log.INFO, TAG, "connectToBracelet()");
         if (leDeviceListAdapter.containsKey(arduinoName)) {
+            Log.println(Log.INFO, TAG, "connectToBracelet() found");
+            bluetoothLeScanner.stopScan(leScanCallback);
             bluetoothGatt = leDeviceListAdapter.getDevice(arduinoName).connectGatt(this, true, gattCallback);
+
             return true;
         } else {
             return false;
@@ -388,15 +401,38 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      * Method that if all goes well should send a "1" to the arduino
      */
     public void sendToBracelet() {
-        //Log.println(Log.INFO, TAG, "sendToBracelet");
-        triggerVibration.setValue(new byte[] {(byte) 1});
         if (bluetoothGatt != null) {
-            bluetoothGatt.writeCharacteristic(triggerVibration);
-            showToast("Signal was sent to the bracelet");
+            bluetoothGattService = bluetoothGatt.getService(SERVICE_UUID);//DEVICE_UUID);
+        }
+        if (bluetoothGattService != null) {
+            //bluetoothGatt.writeCharacteristic(triggerVibration);
+            triggerVibration = bluetoothGattService.getCharacteristic(SERVICE_UUID);//s().get(0);//getCharacteristic(SERVICE_UUID);
+            triggerVibration.setValue(1, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+
+            if (bluetoothGatt.writeCharacteristic(triggerVibration)) {
+                showToast("Signal was sent to the bracelet");
+            } else {
+                showToast("not");
+            }
         } else {
             showToast("Signal cannot be sent, there is no bluetooth connection of the required type");
         }
-        triggerVibration.setValue(new byte[] {(byte) 0});
+        //triggerVibration.setValue(new byte[] {(byte) 0});
+//        Log.println(Log.INFO, TAG, "send");
+//        List<BluetoothGattService> services = bluetoothGatt.getServices();
+//        if (services.isEmpty()) {
+//            log("empty");
+//        }
+//        if (bluetoothGatt.getService(SERVICE_UUID) == null) {
+//            log("service is null");
+//        }
+//        for (BluetoothGattService service : services) {
+//            bluetoothStatusText.append(service.getUuid().toString());
+//        }
+    }
+
+    public void log(String msg) {
+        Log.println(Log.INFO, TAG, msg);
     }
 
     private RecognitionListener recognitionListener = new RecognitionListener() {
@@ -495,7 +531,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      * Events are :
      * ACTION_GATT_CONNECTED: connected to a GATT server.
      * ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
-     * ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services. - I am not sure we need this
+     * ACTION_GATT_SERVICES_: discovered GATT services. - I am not sure we need this
      * ACTION_DATA_AVAILABLE: received data from the device - This can be a result of read or notification operations.
      */
     private final BroadcastReceiver gattUpdateReceiver = new BroadcastReceiver() {
@@ -509,6 +545,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 //                updateConnectionState(R.string.connected);
 //                invalidateOptionsMenu();
                 device = temp;
+                CheckBluetoothState();
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
 //                connected = false;
 //                updateConnectionState(R.string.disconnected);
@@ -516,9 +553,11 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 //                clearUI();
                 bracelet = false;
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                // Show all the supported services and characteristics on the
-                // user interface.
-                //displayGattServices(bluetoothLeService.getSupportedGattServices());
+                //TODO
+                if (bluetoothGatt.getService(SERVICE_UUID) != null) {
+                    bluetoothGattService = bluetoothGatt.getService(SERVICE_UUID);
+
+                }
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 //displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
                 //TODO; HERE WE WILL MOST LIKELY HAVE TO SEND THE DATA TO THE SPEECH RECOGNITION
@@ -655,7 +694,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
             super.onScanResult(callbackType, result);
             leDeviceListAdapter.addDevice(result.getDevice().getName(), result.getDevice());
             leDeviceListAdapter.notifyDataSetChanged();
-            //bluetoothStatusText.append(System.lineSeparator() + result.getDevice().getName());
+            bluetoothStatusText.append(System.lineSeparator() + result.getDevice().getName() + " " + result.getDevice().getAddress());
             //discoveredDevices.put(result.getDevice().getName(), result.getDevice());
         }
     };

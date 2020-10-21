@@ -17,12 +17,9 @@ import com.example.a4wbb0app.MainActivity;
 
 import java.util.UUID;
 
-import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
-import static android.telecom.Connection.STATE_DISCONNECTED;
-
 // A service that interacts with the BLE device via the Android BLE API.
 public class BluetoothLeService extends Service {
-    private final static String TAG = BluetoothLeService.class.getSimpleName();
+    private final static String TAG = "LeService";//BluetoothLeService.class.getSimpleName();
 
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter bluetoothAdapter;
@@ -45,7 +42,7 @@ public class BluetoothLeService extends Service {
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
 
-    public final static UUID MY_UUID = MainActivity.MY_UUID;
+    public final static UUID MY_UUID = MainActivity.SERVICE_UUID;
 
     //TODO: GET ALL THE BROADCASTUPDATE CALLS BACK AFTER THE METHODS WERE IMPLEMENTED PROPERLY
 
@@ -57,10 +54,14 @@ public class BluetoothLeService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 intentAction = ACTION_GATT_CONNECTED;
                 connectionState = STATE_CONNECTED;
+                //bluetoothGatt.discoverServices();
+                gatt.discoverServices();
                 broadcastUpdate(intentAction);
                 //Log.println(Log.INFO, TAG, intentAction);
                 //Log.i(TAG, "Connected to GATT server.");
-                //Log.i(TAG, "Attempting to start service discovery:" + bluetoothGatt.discoverServices());
+                //NOTE: bluetoothGatt.discoverServices is VERY IMPORTANT
+//                Log.i(TAG, "Attempting to start service discovery:" + bluetoothGatt.discoverServices());
+                Log.i(TAG, "Attempting to start service discovery:" + gatt.discoverServices());
 
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = ACTION_GATT_DISCONNECTED;
@@ -76,9 +77,9 @@ public class BluetoothLeService extends Service {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
-                //Log.println(Log.INFO, TAG, ACTION_GATT_SERVICES_DISCOVERED);
+                Log.println(Log.INFO, TAG, ACTION_GATT_SERVICES_DISCOVERED);
             } else {
-                //Log.w(TAG, "onServicesDiscovered received: " + status);
+                Log.w(TAG, "onServicesDiscovered received: " + status);
             }
         }
 
@@ -104,6 +105,13 @@ public class BluetoothLeService extends Service {
 
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);
+        //intent.putExtra(action, ACT)
+        if (intent == null) {
+            new MainActivity().log("intent is fucjing null");
+        }
+//        if (bluetoothGatt == null) {
+//            Log.println(Log.INFO, TAG, "bluetoothGatt is null");
+//        }
         sendBroadcast(intent);
     }
 
