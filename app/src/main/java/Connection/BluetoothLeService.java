@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
 import android.util.Log;
@@ -27,6 +28,8 @@ public class BluetoothLeService extends Service {
     private BluetoothGatt bluetoothGatt;
     private int connectionState = STATE_DISCONNECTED;
 
+    Context context;
+
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTING = 1;
     private static final int STATE_CONNECTED = 2;
@@ -45,6 +48,12 @@ public class BluetoothLeService extends Service {
     public final static UUID MY_UUID = MainActivity.SERVICE_UUID;
 
     //TODO: GET ALL THE BROADCASTUPDATE CALLS BACK AFTER THE METHODS WERE IMPLEMENTED PROPERLY
+
+    public BluetoothLeService() {}
+
+    public BluetoothLeService(Context context) {
+        this.context = context;
+    }
 
     // Various callback methods defined by the BLE API.
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
@@ -105,14 +114,7 @@ public class BluetoothLeService extends Service {
 
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);
-        //intent.putExtra(action, ACT)
-        if (intent == null) {
-            new MainActivity().log("intent is fucjing null");
-        }
-//        if (bluetoothGatt == null) {
-//            Log.println(Log.INFO, TAG, "bluetoothGatt is null");
-//        }
-        sendBroadcast(intent);
+        context.sendBroadcast(intent);
     }
 
     //TODO: CHECK IF THIS WORKS

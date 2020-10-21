@@ -168,7 +168,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING);
         audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
 
-        bluetoothLeService = new BluetoothLeService();
+        bluetoothLeService = new BluetoothLeService(this);
         handler = new Handler();
         leDeviceListAdapter = new LeDeviceListAdapter();
         bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
@@ -229,9 +229,6 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
         registerReceiver(networkUpdateReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
 
-        CheckBluetoothState();
-        CheckNetworkState();
-
         speechRecognizer.startListening(recognizerIntent);
         //speechRecognizer.startRecognition();
 
@@ -250,9 +247,6 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         scanAgainBT.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //Intent gotToBtSettingsIntent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
-                //startActivityForResult(gotToBtSettingsIntent, REQUEST_GO_TO_BT_SETTINGS);
-                //scanAgainBT.setEnabled(false);
                 CheckBluetoothState();
             }
         });
@@ -351,9 +345,10 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                     }
                     //try to connect to the bracelet
                     bracelet = connectToBracelet();
-//                    if (bracelet) {
-//                        CheckBluetoothState();
-//                    }
+                    if (bracelet) {
+                        scanAgainBT.setEnabled(false);
+                        bluetoothStatusText.setText("Bluetooth is enabled and the bracelet is connected to this device.");
+                    }
                     /*if (!scanning && !bracelet) {
                         scanAgainBT.setEnabled(true);
                     }*/
@@ -539,7 +534,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            temp = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            temp = bluetoothGatt.getDevice();//intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action) && temp.getName().equals(arduinoName)) {
                 bracelet = true;
 //                updateConnectionState(R.string.connected);
