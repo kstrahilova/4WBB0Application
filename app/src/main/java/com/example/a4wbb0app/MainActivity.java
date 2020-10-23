@@ -547,6 +547,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 //                invalidateOptionsMenu();
 //                clearUI();
                 bracelet = false;
+                CheckBluetoothState();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 //TODO
                 if (bluetoothGatt.getService(SERVICE_UUID) != null) {
