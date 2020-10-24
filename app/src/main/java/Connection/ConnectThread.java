@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
+import android.util.Log;
 
 import com.example.a4wbb0app.MainActivity;
 
@@ -12,7 +13,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * I THINK WE WILL ONLY NEED THIS ONE AND NOT ACCEPTTHREAD
+ * Is not used, since it is part of the Bluetooth Classic Implementation, and the app uses BLE
  * Facilitates connecting to a remote device that accepts connections on an open server socket
  * the device is found and then passed as a parameter to the constructor
  */
@@ -23,90 +24,69 @@ public class ConnectThread extends Thread {
     private final BluetoothDevice mmDevice;
     BluetoothAdapter bluetoothAdapter;
     public final UUID MY_UUID;
-    BroadcastReceiver receiver;
-    //static BluetoothProfile profile;
-    //static BluetoothA2dp A2dpinstance;
 
-    //We need a device that we have found
+    /**
+     * Connect the device by making a socket
+     * @param device
+     */
     @SuppressLint("LongLogTag")
     public ConnectThread(BluetoothDevice device) {
         MY_UUID = MainActivity.MY_UUID;
-        // Use a temporary object that is later assigned to mmSocket
-        // because mmSocket is final.
+        // Use a temporary object that is later assigned to mmSocket because it is final.
         BluetoothSocket tmp = null;
         mmDevice = device;
         bluetoothAdapter = MainActivity.getBluetoothAdapter();
-
-        //Log.println(Log.INFO, "ConnectThread", "we are in the constructor");
-
-
-        //bluetoothAdapter.getProfileProxy(MainActivity.getContext(), listener, BluetoothProfile.A2DP);
-
         if (device == null) {
-            //Log.println(Log.INFO, TAG, "device is null in constructor");
+            Log.println(Log.INFO, TAG, "device is null in constructor");
         }
         try {
             // Get a BluetoothSocket to connect with the given BluetoothDevice.
-            // MY_UUID is the app's UUID string, also used in the server code.
-            //get a BluetoothSocket that allows the client to connect to a Bluetooth device
-            tmp = device.createRfcommSocketToServiceRecord(MY_UUID);//createInsecureRfcommSocketToServiceRecord(MY_UUID);//createRfcommSocketToServiceRecord(MY_UUID);
-            //tmp =(BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(device,1);
-            //tmp =(BluetoothSocket) device.getClass().getMethod("createRfcommSocketToServiceRecord", new Class[] {int.class, UUID.class}).invoke(device,1, MY_UUID);
+            tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
         } catch (IOException e) {
-            //Log.e(TAG, "Socket's create() method failed", e);
-//        } catch (NoSuchMethodException e) {
-//            e.printStackTrace();
-//        } catch (IllegalAccessException e) {
-//            e.printStackTrace();
-//        } catch (InvocationTargetException e) {
-//            e.printStackTrace();
+            Log.e(TAG, "Socket's create() method failed", e);
         }
         mmSocket = tmp;
     }
 
-
+    /**
+     * Method that attempts to connect to the socket
+     */
     public void run() {
-        //Log.println(Log.INFO, "ConnectThread", "beginning of run()");
-        // Cancel discovery because it otherwise slows down the connection.
+        //Cancel discovery because it otherwise slows down the connection.
         bluetoothAdapter.cancelDiscovery();
-
         try {
-            // Connect to the remote device through the socket. This call blocks
-            // until it succeeds or throws an exception.
+            // Connect to the remote device through the socket. This call blocks until it succeeds or throws an exception.
             mmSocket.connect();
-            //Log.println(Log.INFO, "ConnectThread", "after mmSocket.connect()");
         } catch (IOException connectException) {
-            // Unable to connect; close the socket and return.
-//            try {
-//                mmSocket.close();
-//            } catch (IOException closeException) {
-//                Log.e(TAG, "Could not close the client socket", closeException);
-//            }
-            //Log.e(TAG, "Connect didn't work", connectException);
+            //Unable to connect; close the socket and return.
+            try {
+                mmSocket.close();
+            } catch (IOException closeException) {
+                Log.e(TAG, "Could not close the client socket", closeException);
+            }
             return;
         }
 
-        // The connection attempt succeeded. Perform work associated with
-        // the connection in a separate thread.
-        //TODO:
+        //The connection attempt succeeded. Perform work associated with the connection in a separate thread.
         manageMyConnectedSocket(mmSocket);
-
     }
 
     /*
-    TODO:
+     * Method that manages the socket
      */
     public void manageMyConnectedSocket(BluetoothSocket socket) {
         new BluetoothService().new ConnectedThread(mmSocket).run();
+        //TODO: implement this method
     }
 
-    // Closes the client socket and causes the thread to finish.
+    /**
+     * Closes the client socket and causes the thread to finish.
+     */
     public void cancel() {
         try {
-            //Log.println(Log.INFO, "ConnectThread", "we are closing the socket.");
             mmSocket.close();
         } catch (IOException e) {
-            //Log.e(TAG, "Could not close the client socket", e);
+            Log.e(TAG, "Could not close the client socket", e);
         }
     }
 }
