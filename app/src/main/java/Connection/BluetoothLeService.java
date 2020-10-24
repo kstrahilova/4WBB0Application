@@ -45,7 +45,7 @@ public class BluetoothLeService extends Service {
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
 
-    public final static UUID MY_UUID = MainActivity.SERVICE_UUID;
+    public final static UUID MY_UUID = MainActivity.MY_UUID;
 
     //TODO: GET ALL THE BROADCASTUPDATE CALLS BACK AFTER THE METHODS WERE IMPLEMENTED PROPERLY
 

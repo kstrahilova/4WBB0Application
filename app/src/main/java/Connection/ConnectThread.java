@@ -30,7 +30,7 @@ public class ConnectThread extends Thread {
     //We need a device that we have found
     @SuppressLint("LongLogTag")
     public ConnectThread(BluetoothDevice device) {
-        MY_UUID = MainActivity.SERVICE_UUID;
+        MY_UUID = MainActivity.MY_UUID;
         // Use a temporary object that is later assigned to mmSocket
         // because mmSocket is final.
         BluetoothSocket tmp = null;
