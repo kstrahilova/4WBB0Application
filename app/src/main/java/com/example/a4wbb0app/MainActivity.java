@@ -265,11 +265,45 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     /**
+     * Scans for BLE devices, enables/disables the scan again button accordingly
+     */
+    private void scanLeDevice() {
+        //makes sure the scanner is initialized - sometimes it doesn't initialise on time, this is why this is needed
+        if (bluetoothLeScanner == null) {
+            bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
+        }
+        //if it isn't scanning already
+        if (!scanning) {
+            //makes sure the scan is stopped after a pre-defined scan period.
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    //if it is time to stop the scan, scanning should reflect that
+                    scanning = false;
+                    if (bluetoothAdapter.getState() == BluetoothAdapter.STATE_ON) {
+                        //stop the scan
+                        bluetoothLeScanner.stopScan(leScanCallback);
+                        //if the bracelet didn't connect during this scan enable the "SCAN AGAIN" button
+                        if (!bracelet) {
+                            scanAgainBT.setEnabled(true);
+                        }
+                    }
+                }
+            }, SCAN_PERIOD);
+            //start the scan after disabling the button and making sure scanning reflects that
+            scanAgainBT.setEnabled(false);
+            scanning = true;
+            bluetoothAdapter.startDiscovery();
+            bluetoothLeScanner.startScan(leScanCallback);
+        }
+    }
+
+    /**
      * Method thtat checks the state of the network connectivity
      * There are 2 cases: either connected or not
      * Uses the isConnected() method
      */
-    public void CheckNetworkState() {
+    private void CheckNetworkState() {
         if (isConnected()) {
             networkStatusText.setText("You are connected to the internet.");
             if (speechRecognizer != null && recognizerIntent != null) {
@@ -282,16 +316,45 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     /**
-     * Method that sets the button listener for the button that opens the bluetooth settings
-     * any other button onClickListeners should be created here
+     * Method that returns whether or not the android device is connected to the internet
+     * @return whether or not the android device is connected to the internet
+     */
+    public  boolean isConnected() {
+        networkInfo = connectivityManager.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected();
+    }
+
+    /**
+     * Method that ensures that the permission to record audio is granted
+     */
+    private void CheckAudioPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
+        }
+    }
+
+    /**
+     * Method that ensures that the permission to use the devices location is granted
+     */
+    private void CheckLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ACCESS_LOCATION);
+        }
+    }
+
+    /**
+     * Method that sets the button listeners for the buttons and the listener for changes in
+     * the text input field
      */
     private void setListeners() {
+        //if "SCAN AGAIN" is pressed, call CheckBluetoothState(), since it takes care of it
         scanAgainBT.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 CheckBluetoothState();
             }
         });
+        //if the button for the network settings is clicked, open the phones internet settings
         networkSettingsBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -299,59 +362,34 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
                 startActivityForResult(goToNwSettingsIntent, REQUEST_GO_TO_WF_SETTINGS);
             }
         });
+        //if the text is changed
         setKeywordEditText.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
-            }
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-
-            }
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
             //after the text is changed, set the new keyword
             @Override
             public void afterTextChanged(Editable s) {
                 keyword = setKeywordEditText.getText().toString();
+                //save the new keyword in the SharedPreferences
                 editor.putString(keywordPref, keyword);
                 editor.commit();
+                //let the user know the keyword is updated; needed since it is slow,
+                //so the user knows when the app will start recognizing the new keyword
                 showToast("Keyword is updated to " + keyword);
-                //currentKeywordText.setText(keyword);
-                //setKeywordEditText.setText("");
             }
         });
     }
 
-    /**
-     * Method that returns whether or not the android device is connected to the internet
-     * @return
-     */
-    public  boolean isConnected() {
-        networkInfo = connectivityManager.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()) {
-            return true;
-        } else {
-            return false;
-        }
-    }
 
 
 
 
 
-    private void CheckAudioPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
-        }
-    }
 
-    private void CheckLocationPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ACCESS_LOCATION);
-
-        }
-    }
 
     public boolean connectToBracelet() {
         Log.println(Log.INFO, TAG, "connectToBracelet()");
@@ -671,42 +709,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     };
 
 
-    /**
-     * Scans for BLE devices
-     * Part of the BLE implementation
-     * enables/disables the scan again button accordingly
-     */
-    private void scanLeDevice() {
-        if (bluetoothLeScanner == null) {
-            bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
-        }
 
-        if (!scanning) {
-            // Stops scanning after a pre-defined scan period.
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    scanning = false;
-                    if (bluetoothAdapter.getState() == BluetoothAdapter.STATE_ON) {
-                        bluetoothLeScanner.stopScan(leScanCallback);
-                        if (!bracelet) {
-                            scanAgainBT.setEnabled(true);
-                        }
-                    }
-                }
-            }, SCAN_PERIOD);
-            scanAgainBT.setEnabled(false);
-            scanning = true;
-            bluetoothAdapter.startDiscovery();
-            bluetoothLeScanner.startScan(leScanCallback);
-        } else {
-            scanning = false;
-            bluetoothLeScanner.stopScan(leScanCallback);
-            if (!bracelet) {
-                scanAgainBT.setEnabled(true);
-            }
-        }
-    }
 
     /**
      * Method that sets up a socket;
