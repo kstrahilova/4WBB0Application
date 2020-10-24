@@ -63,12 +63,10 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     private static final String TAG = "MainActivity";
     public static final UUID MY_UUID = UUID.fromString("2c38fe90-116c-4645-921e-b4d8ca85449f");
     public final String arduinoName = "VibrationMotor";
-    private static final int REQUEST_GO_TO_BT_SETTINGS = 1;
+    private static final int REQUEST_ENABLE_BT = 1;
     private static final int REQUEST_GO_TO_WF_SETTINGS = 2;
-    private static final int REQUEST_SPEECH_RECOGNITION = 3;
-    private static final int REQUEST_RECORD_AUDIO = 4;
-    private static final int REQUEST_ENABLE_BT = 5;
-    private static final int REQUEST_ACCESS_LOCATION = 6;
+    private static final int REQUEST_RECORD_AUDIO = 3;
+    private static final int REQUEST_ACCESS_LOCATION = 4;
 
     //the name of the SharedPreferences xml file
     public static final String PREFERENCES = "preferences";
@@ -265,6 +263,20 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     /**
+     * BroadcastReceiver that listens for bluetooth changes and ensures that user is aware when the
+     * bluetooth is off, or device is not connected by calling CheckBluetoothState()
+     */
+    private final BroadcastReceiver receiverBTchange = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
+                CheckBluetoothState();
+            }
+        }
+    };
+
+    /**
      * Scans for BLE devices, enables/disables the scan again button accordingly
      */
     private void scanLeDevice() {
@@ -299,6 +311,74 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     /**
+     * Device scan callback
+     * If a device is found add it to the found devices data structure and call connectToBracelet()
+     */
+    private ScanCallback leScanCallback = new ScanCallback() {
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            super.onScanResult(callbackType, result);
+            leDeviceListAdapter.addDevice(result.getDevice().getName(), result.getDevice());
+            leDeviceListAdapter.notifyDataSetChanged();
+            bracelet = connectToBracelet();
+        }
+    };
+
+    /**
+     * Method that checks if the bracelet has been found and if so connects to it
+     * @return if the bracelet was connected
+     */
+    public boolean connectToBracelet() {
+        //if the bracelet was added to the list, that means it was found
+        if (leDeviceListAdapter.containsKey(arduinoName)) {
+            //so stop the scan, connect to the bracelet and return true to set the value of bracelet in the calling method
+            bluetoothLeScanner.stopScan(leScanCallback);
+            bluetoothGatt = leDeviceListAdapter.getDevice(arduinoName).connectGatt(this, true, gattCallback);
+            return true;
+        } else {
+            //if it isn't in the list it hasn't been found yet, continue searching
+            return false;
+        }
+    }
+
+    /**
+     * BroadcastReceiver that handles actions of the BLE device (events fired by the BluetoothLeService)
+     * Events are :
+     * ACTION_GATT_CONNECTED: connected to a GATT server.
+     * ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
+     * ACTION_GATT_SERVICES_: discovered GATT services.
+     * ACTION_DATA_AVAILABLE: received data from the device - This can be used to implement using
+     *                        the device's microphone for the speech recognition
+     */
+    private final BroadcastReceiver gattUpdateReceiver = new BroadcastReceiver() {
+        BluetoothDevice temp;
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            temp = bluetoothGatt.getDevice();
+            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action) && temp.getName().equals(arduinoName)) {
+                //if the device connected is the device we want set bracelet to true and call CheckBluetoothState()
+                bracelet = true;
+                device = temp;
+                CheckBluetoothState();
+            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                //if the bracelet was disconnected, make sure the user knows it
+                bracelet = false;
+                CheckBluetoothState();
+            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+                //if a service was discovered, set it
+                if (bluetoothGatt.getService(MY_UUID) != null) {
+                    bluetoothGattService = bluetoothGatt.getService(MY_UUID);
+                }
+            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+                //data recorded by the external mic, sent to the device
+                //here we can send the audio from the external microphone to the speech recognition could be
+                //implemented if the speech recognition allows it
+            }
+        }
+    };
+
+    /**
      * Method thtat checks the state of the network connectivity
      * There are 2 cases: either connected or not
      * Uses the isConnected() method
@@ -316,12 +396,104 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     /**
+     * Broadcast receiver for network connectivity changes
+     * Since checking for connectivity actions only appears to be too time consuming, it will run CheckNetworkState for any broadcast
+     */
+    private final BroadcastReceiver networkUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            CheckNetworkState();
+        }
+    };
+
+    /**
      * Method that returns whether or not the android device is connected to the internet
      * @return whether or not the android device is connected to the internet
      */
     public  boolean isConnected() {
         networkInfo = connectivityManager.getActiveNetworkInfo();
         return networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected();
+    }
+
+    /**
+     * RecognitionListener that soecifies what should be done when there is words recognized
+     */
+    private RecognitionListener recognitionListener = new RecognitionListener() {
+        @Override
+        public void onReadyForSpeech(Bundle params) {}
+
+        @Override
+        public void onBeginningOfSpeech() {}
+
+        @Override
+        public void onRmsChanged(float rmsdB) {}
+
+        @Override
+        public void onBufferReceived(byte[] buffer) {}
+
+        @Override
+        public void onEndOfSpeech() {}
+
+        @Override
+        public void onError(int error) {
+            //if there is an error that isn't that the recognizer is called too many times, start the recognition again
+            if (error != ERROR_RECOGNIZER_BUSY) {
+                speechRecognizer.startListening(recognizerIntent);
+            }
+        }
+
+        @Override
+        public void onResults(Bundle results) {
+            //an array list of all words that were recognized by SpeechRecognizer
+            ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            //if we have at least one match
+            if (matches != null && matches.size() > 0) {
+                String sentence = matches.get(0);
+                //split the match into seperate words
+                String[] split = sentence.split(" ");
+                //and for each of these words
+                for (String word : split) {
+                    //check if it is equal to the keyword
+                    if (word.equals(keyword)) {
+                        //if it is, send the signal to the bracelet
+                        sendToBracelet();
+                    }
+                }
+            }
+            //restart the recognition, since it stops when a match is found
+            speechRecognizer.startListening(recognizerIntent);
+        }
+
+        @Override
+        public void onPartialResults(Bundle partialResults) {}
+
+        @Override
+        public void onEvent(int eventType, Bundle params) {}
+    };
+
+    /**
+     * Method that given the appropriate connection sends the signal to the bracelet
+     */
+    public void sendToBracelet() {
+        if (bluetoothGatt != null) {
+            //get the service
+            bluetoothGattService = bluetoothGatt.getService(MY_UUID);
+        }
+        //if it exists
+        if (bluetoothGattService != null) {
+            //get the characteristic from the service and set its value
+            triggerVibration = bluetoothGattService.getCharacteristic(MY_UUID);
+            triggerVibration.setValue(1, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+            //send the signal by writing the characteristic and check if it was successful
+            if (bluetoothGatt.writeCharacteristic(triggerVibration)) {
+                showToast("Signal was sent to the bracelet");
+            } else {
+                showToast("Something went wrong with sending the signal");
+            }
+            //if the service doesn't exist then either a different device is connected or no device is connected
+        } else {
+            showToast("Signal cannot be sent, there is no bluetooth connection of the required type");
+        }
     }
 
     /**
@@ -384,227 +556,6 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
         });
     }
 
-
-
-
-
-
-
-
-    public boolean connectToBracelet() {
-        Log.println(Log.INFO, TAG, "connectToBracelet()");
-        if (leDeviceListAdapter.containsKey(arduinoName)) {
-            Log.println(Log.INFO, TAG, "connectToBracelet() found");
-            bluetoothLeScanner.stopScan(leScanCallback);
-            bluetoothGatt = leDeviceListAdapter.getDevice(arduinoName).connectGatt(this, true, gattCallback);
-
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * Method that if all goes well should send a "1" to the arduino
-     */
-    public void sendToBracelet() {
-        if (bluetoothGatt != null) {
-            bluetoothGattService = bluetoothGatt.getService(MY_UUID);//DEVICE_UUID);
-        }
-        if (bluetoothGattService != null) {
-            //bluetoothGatt.writeCharacteristic(triggerVibration);
-            triggerVibration = bluetoothGattService.getCharacteristic(MY_UUID);//s().get(0);//getCharacteristic(SERVICE_UUID);
-            triggerVibration.setValue(1, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-
-            if (bluetoothGatt.writeCharacteristic(triggerVibration)) {
-                showToast("Signal was sent to the bracelet");
-            } else {
-                showToast("not");
-            }
-        } else {
-            showToast("Signal cannot be sent, there is no bluetooth connection of the required type");
-        }
-        //triggerVibration.setValue(new byte[] {(byte) 0});
-//        Log.println(Log.INFO, TAG, "send");
-//        List<BluetoothGattService> services = bluetoothGatt.getServices();
-//        if (services.isEmpty()) {
-//            log("empty");
-//        }
-//        if (bluetoothGatt.getService(SERVICE_UUID) == null) {
-//            log("service is null");
-//        }
-//        for (BluetoothGattService service : services) {
-//            bluetoothStatusText.append(service.getUuid().toString());
-//        }
-    }
-
-    public void log(String msg) {
-        Log.println(Log.INFO, TAG, msg);
-    }
-
-    private RecognitionListener recognitionListener = new RecognitionListener() {
-        @Override
-        public void onReadyForSpeech(Bundle params) {
-
-        }
-
-        @Override
-        public void onBeginningOfSpeech() {
-            //Log.println(Log.INFO, TAG, "onBeginningOfSpeech");
-        }
-
-        @Override
-        public void onRmsChanged(float rmsdB) {
-
-        }
-
-        @Override
-        public void onBufferReceived(byte[] buffer) {
-
-        }
-
-        @Override
-        public void onEndOfSpeech() {
-
-        }
-
-        @Override
-        public void onError(int error) {
-            if (error != ERROR_RECOGNIZER_BUSY) {
-                speechRecognizer.startListening(recognizerIntent);
-            }
-        }
-
-        @Override
-        public void onResults(Bundle results) {
-            //This doesn't work
-            //Log.println(Log.INFO, TAG, "onResults()");
-            ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-            float[] scores = results.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES);
-            if (matches != null && matches.size() > 0) {
-                String sentence = matches.get(0);
-                //Log.println(Log.INFO, TAG, "sentence #" + matches.size());
-                String[] split = sentence.split(" ");
-                for (String word : split) {
-                    if (word.equals(keyword)) {
-                        //Log.println(Log.INFO, TAG, "word is " + word);
-                        //Log.println(Log.INFO, TAG, "sent to bracelet from listener");
-                        sendToBracelet();
-                    }
-                }
-            }
-            speechRecognizer.startListening(recognizerIntent);
-        }
-
-        @Override
-        public void onPartialResults(Bundle partialResults) {
-
-        }
-
-        @Override
-        public void onEvent(int eventType, Bundle params) {
-
-        }
-    };
-
-    /**
-     * Method that ensures that user is aware that bluetooth is off, or device is not connected
-     */
-    private final BroadcastReceiver receiverBTchange = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
-                CheckBluetoothState();
-            }
-        }
-    };
-
-    /**
-     * Broadcast receiver for network connectivity changes
-     * Since checking for connectivity actions only appears to be a bit more work, it will run CheckNetworkState for any broadcast
-     */
-    private final BroadcastReceiver networkUpdateReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            //Log.println(Log.INFO, TAG, "onReceive");
-            CheckNetworkState();
-        }
-    };
-
-    /**
-     * Broadcast receiver
-     * Handles actions of the BLE device (events fired by the Service)
-     * Events are :
-     * ACTION_GATT_CONNECTED: connected to a GATT server.
-     * ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
-     * ACTION_GATT_SERVICES_: discovered GATT services. - I am not sure we need this
-     * ACTION_DATA_AVAILABLE: received data from the device - This can be a result of read or notification operations.
-     */
-    private final BroadcastReceiver gattUpdateReceiver = new BroadcastReceiver() {
-        BluetoothDevice temp;
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-            temp = bluetoothGatt.getDevice();//intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action) && temp.getName().equals(arduinoName)) {
-                bracelet = true;
-//                updateConnectionState(R.string.connected);
-//                invalidateOptionsMenu();
-                device = temp;
-                CheckBluetoothState();
-            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
-//                connected = false;
-//                updateConnectionState(R.string.disconnected);
-//                invalidateOptionsMenu();
-//                clearUI();
-                bracelet = false;
-                CheckBluetoothState();
-            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                //TODO
-                if (bluetoothGatt.getService(MY_UUID) != null) {
-                    bluetoothGattService = bluetoothGatt.getService(MY_UUID);
-
-                }
-            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                //data recorded by the external mic, sent to the device
-                //TODO: HERE WE WILL HAVE TO SEND THE DATA TO THE SPEECH RECOGNITION
-            }
-        }
-    };
-
-
-    private final BroadcastReceiver listAdapterChanged = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            bracelet = connectToBracelet();
-        }
-    };
-
-    /**
-     * Service listener that checks the profile of a newly connected device and sets the corresponding
-     * profile object
-     */
-    private BluetoothProfile.ServiceListener profileListener = new BluetoothProfile.ServiceListener() {
-        public void onServiceConnected(int profile, BluetoothProfile proxy) {
-            if (profile == A2DP) {
-                bluetoothA2dp = (BluetoothA2dp) proxy;
-            } else if (profile == GATT) {
-                //not so sure about this, check the CheckBluetoothConnection
-                bluetoothGatt = (BluetoothGatt) proxy;
-                //bluetoothGatt = device.connectGatt(this, true, gattCallback);
-            }
-        }
-        //clean up
-        public void onServiceDisconnected(int profile) {
-            if (profile == A2DP) {
-                bluetoothA2dp = null;
-            } else if (profile == GATT) {
-                bluetoothGatt = null;
-            }
-        }
-    };
-
     /**
      * Method that handles all request results
      * @param requestCode
@@ -613,31 +564,13 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
      */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        //If enabling Bluetooth succeeds, your activity receives the RESULT_OK result code in
-        // the onActivityResult() callback. If Bluetooth was not enabled due to an error (or the
-        // user responded "No") then the result code is RESULT_CANCELED
         super.onActivityResult(requestCode, resultCode, data);
-
-        //How do i make it so that the app is open again after settings?
-        if (requestCode == REQUEST_GO_TO_BT_SETTINGS || requestCode == REQUEST_ENABLE_BT) {
+        //it the request is turning Bluetooth on
+        if (requestCode == REQUEST_ENABLE_BT) {
             CheckBluetoothState();
+        //if the request was going to the network settings
         } else if (requestCode == REQUEST_GO_TO_WF_SETTINGS) {
             CheckNetworkState();
-        } else if (requestCode == REQUEST_SPEECH_RECOGNITION && resultCode == RESULT_OK) {
-            //This works
-            ArrayList<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            if (matches != null && matches.size() > 0) {
-                String sentence = matches.get(0);
-                String[] split = sentence.split(" ");
-                for (String word : split)
-                    if (word.equals(keyword)) {
-                        //Log.println(Log.INFO, TAG, "word is " + word);
-                        sendToBracelet();
-                    }
-            }
-            startActivityForResult(recognizerIntent, REQUEST_SPEECH_RECOGNITION);
-        } else if (requestCode == REQUEST_SPEECH_RECOGNITION) {
-             //Log.println(Log.INFO, TAG, "resultCode is " + String.valueOf(resultCode));
         }
     }
 
@@ -659,62 +592,51 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     /**
-     * Getter method for the status text
-     * I am not sure why this is used, since it is used in this method and here we can just type
-     * statusText, but oh well
-     * @return
-     */
-    public TextView getBluetoothStatusText() {
-        return bluetoothStatusText;
-    }
-
-    /**
      * Method that cleans up after app is closed
      */
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        //bluetoothAdapter.closeProfileProxy(A2DP, bluetoothA2dp);
+        //restore the volume level
         audioManager.setStreamVolume(AudioManager.STREAM_RING, initialVolume, AudioManager.FLAG_VIBRATE);
-
+        //clean up
         bluetoothAdapter.closeProfileProxy(GATT, bluetoothGatt);
+        if (bluetoothGatt != null) {
+            bluetoothGatt.close();
+            bluetoothGatt = null;
+        }
         unregisterReceiver(receiverBTchange);
         unregisterReceiver(gattUpdateReceiver);
         speechRecognizer.stopListening();
         speechRecognizer.destroy();
-        connectThread.cancel();
-
-        if (bluetoothGatt == null) {
-            return;
-        }
-        bluetoothGatt.close();
-        bluetoothGatt = null;
     }
 
     /**
-     * Device scan callback
-     * Part of the BLE implementation, however will not be used due to our precondition that the
-     * user needs to make sure the android device is connected to the bracelet themselves
+     * Not needed since we use BLE always
      */
-    private ScanCallback leScanCallback = new ScanCallback() {
-        @Override
-        public void onScanResult(int callbackType, ScanResult result) {
-            super.onScanResult(callbackType, result);
-            leDeviceListAdapter.addDevice(result.getDevice().getName(), result.getDevice());
-            leDeviceListAdapter.notifyDataSetChanged();
-            //bluetoothStatusText.append(System.lineSeparator() + result.getDevice().getName() + " " + result.getDevice().getAddress());
-            //discoveredDevices.put(result.getDevice().getName(), result.getDevice());
-            bracelet = connectToBracelet();
+    private BluetoothProfile.ServiceListener profileListener = new BluetoothProfile.ServiceListener() {
+        public void onServiceConnected(int profile, BluetoothProfile proxy) {
+            if (profile == A2DP) {
+                bluetoothA2dp = (BluetoothA2dp) proxy;
+            } else if (profile == GATT) {
+                bluetoothGatt = (BluetoothGatt) proxy;
+            }
+        }
+        //clean up
+        public void onServiceDisconnected(int profile) {
+            if (profile == A2DP) {
+                bluetoothA2dp = null;
+            } else if (profile == GATT) {
+                bluetoothGatt = null;
+            }
         }
     };
 
-
-
-
     /**
      * Method that sets up a socket;
-     * This functionality is part of the Bluetooth Classic, but does not work for the A2DP profile
-     * So this will probably never be used anyway
+     * This functionality is part of the Bluetooth Classic
+     * Does not work for the A2DP profile
+     * Is not used, since BLE is used instead
      * @param device
      */
     private void connectThread(BluetoothDevice device) {
@@ -724,7 +646,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
     /**
      * Broadcast receiver for a Bluetooth Classic device connecting or disconnecting
-     * Most likely will not be used
+     * Is not used, since BLE is used
      */
     private final BroadcastReceiver receiverDevice = new BroadcastReceiver() {
         BluetoothDevice temp;
@@ -743,7 +665,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     };
 
     /**
-     * A2DP code that will most likely not be used
+     * Part of the A2DP implementation
+     * Is not used since BLE is used
      */
     @Override
     public void onBluetoothConnected() {
@@ -751,45 +674,44 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     }
 
     /**
-     * A2DP code that will most likely not be used
+     * Part of the A2DP implementation
+     * Is not used since BLE is used
      */
     @Override
     public void onBluetoothError() {}
 
     /**
-     * Some weird A2DP method that I didn't really get.
-     * Most likely will not be used
+     * Part of the A2DP implementation
+     * Is not used since BLE is used
      * @param proxy
      */
     @Override
     public void onA2DPProxyReceived(BluetoothA2dp proxy) {
         Method connect = getConnectMethod();
-
         //If either is null, just return. The errors have already been logged
         if (connect == null || device == null) {
             return;
         }
-
         try {
             connect.setAccessible(true);
             connect.invoke(proxy, device);
         } catch (InvocationTargetException ex) {
-            //Log.e(TAG, "Unable to invoke connect(BluetoothDevice) method on proxy. " + ex.toString());
+            Log.e(TAG, "Unable to invoke connect(BluetoothDevice) method on proxy. " + ex.toString());
         } catch (IllegalAccessException ex) {
-            //Log.e(TAG, "Illegal Access! " + ex.toString());
+            Log.e(TAG, "Illegal Access! " + ex.toString());
         }
     }
 
     /**
-     * Most likely will not be used
-     * Wrapper around some reflection code to get the hidden 'connect()' method
+     * Part of the A2DP implementation
+     * Is not used since BLE is used
      * @return the connect(BluetoothDevice) method, or null if it could not be found
      */
     private Method getConnectMethod () {
         try {
             return BluetoothA2dp.class.getDeclaredMethod("connect", BluetoothDevice.class);
         } catch (NoSuchMethodException ex) {
-            //Log.e(TAG, "Unable to find connect(BluetoothDevice) method in BluetoothA2dp proxy.");
+            Log.e(TAG, "Unable to find connect(BluetoothDevice) method in BluetoothA2dp proxy.");
             return null;
         }
     }
