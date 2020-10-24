@@ -28,7 +28,7 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
 
     private Callback mCallback;
 
-    private BluetoothBroadcastReceiver (Callback callback) {
+    private BluetoothBroadcastReceiver(Callback callback) {
         mCallback = callback;
     }
 
@@ -40,16 +40,16 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
      *                 of Bluetooth being enabled
      * @param c the context from which to register the receiver
      */
-    public static void register (Callback callback, Context c) {
+    public static void register(Callback callback, Context c) {
         c.registerReceiver(new BluetoothBroadcastReceiver(callback), getFilter());
     }
 
-    private static IntentFilter getFilter () {
+    private static IntentFilter getFilter() {
         return new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
     }
 
     @Override
-    public void onReceive (Context context, Intent intent) {
+    public void onReceive(Context context, Intent intent) {
         if (!BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction())) {
             //Log.v(TAG, "Received irrelevant broadcast. Disregarding.");
             return;
@@ -78,7 +78,7 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
      * @param c the context from which to unregister the receiver
      * @param receiver the receiver that should be unregistered if it is not already unregistered
      */
-    private static void safeUnregisterReceiver (Context c, BroadcastReceiver receiver) {
+    private static void safeUnregisterReceiver(Context c, BroadcastReceiver receiver) {
         try {
             c.unregisterReceiver(receiver);
         } catch (IllegalArgumentException ex) {
@@ -86,13 +86,13 @@ public class BluetoothBroadcastReceiver extends BroadcastReceiver {
         }
     }
 
-    private void fireOnBluetoothConnected () {
+    private void fireOnBluetoothConnected() {
         if (mCallback != null) {
             mCallback.onBluetoothConnected();
         }
     }
 
-    private void fireOnBluetoothError () {
+    private void fireOnBluetoothError() {
         if (mCallback != null) {
             mCallback.onBluetoothError();
         }

@@ -8,7 +8,6 @@
     android:layout_gravity="center_horizontal"
     tools:context=".MainActivity">
 
-
     <TextView
         android:id="@+id/BluetoothStatus"
         android:layout_width="match_parent"
@@ -93,6 +92,7 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="@id/setWord" />
 
+    <!-- This button is not used, but is not removed because the layout is nicer-->
     <Button
         android:id="@+id/BTRecognise"
         android:minWidth="200dp"
@@ -105,8 +105,5 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/wordInput"/>
-
-
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

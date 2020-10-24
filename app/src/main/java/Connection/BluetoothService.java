@@ -10,17 +10,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/**
+ * This class is needed for the ConnectThread
+ * It is not written by me
+ */
 public class BluetoothService {
-    private static final String TAG = "MY_APP_DEBUG_TAG";
-    private Handler handler; // handler that gets info from Bluetooth service
+    private static final String TAG = "BluetoothService";
+    //handler that gets info from Bluetooth service
+    private Handler handler;
 
-    // Defines several constants used when transmitting messages between the
-    // service and the UI.
+    /**
+     * Defines several constants used when transmitting messages between the service and the UI.
+     */
     private interface MessageConstants {
         public static final int MESSAGE_READ = 0;
         public static final int MESSAGE_WRITE = 1;
         public static final int MESSAGE_TOAST = 2;
-
         // ... (Add other message types here as needed.)
     }
 
@@ -35,8 +40,7 @@ public class BluetoothService {
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
 
-            // Get the input and output streams; using temp objects because
-            // member streams are final.
+            //Get the input and output streams; using temp objects because member streams are final.
             try {
                 tmpIn = socket.getInputStream();
             } catch (IOException e) {

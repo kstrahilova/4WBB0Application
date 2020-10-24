@@ -18,9 +18,11 @@ import com.example.a4wbb0app.MainActivity;
 
 import java.util.UUID;
 
-// A service that interacts with the BLE device via the Android BLE API.
+/**
+ * A service that interacts with the BLE device via the Android BLE API.
+ */
 public class BluetoothLeService extends Service {
-    private final static String TAG = "LeService";//BluetoothLeService.class.getSimpleName();
+    private final static String TAG = "LeService";
 
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter bluetoothAdapter;
@@ -47,15 +49,15 @@ public class BluetoothLeService extends Service {
 
     public final static UUID MY_UUID = MainActivity.MY_UUID;
 
-    //TODO: GET ALL THE BROADCASTUPDATE CALLS BACK AFTER THE METHODS WERE IMPLEMENTED PROPERLY
-
     public BluetoothLeService() {}
 
     public BluetoothLeService(Context context) {
         this.context = context;
     }
 
-    // Various callback methods defined by the BLE API.
+    /**
+     * Various callback methods defined by the BLE API, ensuring that updates are reported back to the MainActivity
+     */
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -66,23 +68,19 @@ public class BluetoothLeService extends Service {
                 //bluetoothGatt.discoverServices();
                 gatt.discoverServices();
                 broadcastUpdate(intentAction);
-                //Log.println(Log.INFO, TAG, intentAction);
-                //Log.i(TAG, "Connected to GATT server.");
-                //NOTE: bluetoothGatt.discoverServices is VERY IMPORTANT
-//                Log.i(TAG, "Attempting to start service discovery:" + bluetoothGatt.discoverServices());
-                Log.i(TAG, "Attempting to start service discovery:" + gatt.discoverServices());
-
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = ACTION_GATT_DISCONNECTED;
                 connectionState = STATE_DISCONNECTED;
-                //Log.i(TAG, "Disconnected from GATT server.");
                 broadcastUpdate(intentAction);
-                //Log.println(Log.INFO, TAG, intentAction);
             }
         }
 
+        /**
+         * New services discovered
+         * @param gatt
+         * @param status
+         */
         @Override
-        // New services discovered
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
@@ -92,12 +90,16 @@ public class BluetoothLeService extends Service {
             }
         }
 
+        /**
+         * Result of a characteristic read operation
+         * @param gatt
+         * @param characteristic
+         * @param status
+         */
         @Override
-        // Result of a characteristic read operation
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
-                //Log.println(Log.INFO, TAG, ACTION_DATA_AVAILABLE + characteristic.toString());
             }
         }
     };
@@ -112,15 +114,22 @@ public class BluetoothLeService extends Service {
         return null;
     }
 
+    /**
+     * Send a simple update to MainActivity
+     * @param action
+     */
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);
         context.sendBroadcast(intent);
     }
 
-    //TODO: CHECK IF THIS WORKS
+    /**
+     * Send an update to the MainActivity that has extra data
+     * @param action
+     * @param characteristic
+     */
     private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic) {
         final Intent intent = new Intent(action);
-
         // For all profiles, writes the data formatted in HEX.
         final byte[] data = characteristic.getValue();
         if (data != null && data.length > 0) {

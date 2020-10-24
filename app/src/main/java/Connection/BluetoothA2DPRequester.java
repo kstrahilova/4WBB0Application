@@ -42,7 +42,7 @@ public class BluetoothA2DPRequester implements BluetoothProfile.ServiceListener 
      * @param c the context used to obtain the proxy
      * @param adapter the BluetoothAdapter that should receive the request for proxy
      */
-    public void request (Context c, BluetoothAdapter adapter) {
+    public void request(Context c, BluetoothAdapter adapter) {
         adapter.getProfileProxy(c, this, BluetoothProfile.A2DP);
     }
 
