@@ -44,7 +44,6 @@ import android.widget.Toast;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.UUID;
 
 import Connection.BluetoothA2DPRequester;
