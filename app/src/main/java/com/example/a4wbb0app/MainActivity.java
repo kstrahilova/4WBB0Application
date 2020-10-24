@@ -555,8 +555,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
 
                 }
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                //displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
-                //TODO; HERE WE WILL MOST LIKELY HAVE TO SEND THE DATA TO THE SPEECH RECOGNITION
+                //data recorded by the external mic, sent to the device
+                //TODO: HERE WE WILL HAVE TO SEND THE DATA TO THE SPEECH RECOGNITION
             }
         }
     };
