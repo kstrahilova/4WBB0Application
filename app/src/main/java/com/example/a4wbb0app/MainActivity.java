@@ -105,7 +105,6 @@ public class MainActivity extends AppCompatActivity implements BluetoothBroadcas
     boolean scanning;
     Handler handler;
     static final long SCAN_PERIOD = 10000;
-    //HashMap<String, BluetoothDevice> discoveredDevices;
     LeDeviceListAdapter leDeviceListAdapter;
 
     //variables needed for the speech recognition

@@ -1,11 +1,9 @@
 package Connection;
 
 import android.app.Service;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
@@ -24,10 +22,6 @@ import java.util.UUID;
 public class BluetoothLeService extends Service {
     private final static String TAG = "LeService";
 
-    private BluetoothManager bluetoothManager;
-    private BluetoothAdapter bluetoothAdapter;
-    private String bluetoothDeviceAddress;
-    private BluetoothGatt bluetoothGatt;
     private int connectionState = STATE_DISCONNECTED;
 
     Context context;
@@ -65,7 +59,6 @@ public class BluetoothLeService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 intentAction = ACTION_GATT_CONNECTED;
                 connectionState = STATE_CONNECTED;
-                //bluetoothGatt.discoverServices();
                 gatt.discoverServices();
                 broadcastUpdate(intentAction);
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
